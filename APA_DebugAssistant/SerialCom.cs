@@ -89,7 +89,7 @@ namespace APA_DebugAssistant
             {
                 BaudRateComBox.Items.Add(m_baudRate[i]);
             }
-            BaudRateComBox.SelectedIndex = 6;
+            BaudRateComBox.SelectedIndex = 4;
         }
 
         /// <summary>
