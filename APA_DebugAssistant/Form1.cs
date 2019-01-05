@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using static APA_DebugAssistant.Ultrasonic;
 
 namespace APA_DebugAssistant
 {
@@ -21,6 +22,10 @@ namespace APA_DebugAssistant
         SerialCom m_SerialCom = new SerialCom();
         UInt16 AckCnt;
         byte AckId;
+        #endregion
+
+        #region CAN相关变量
+        ZLGCAN m_ZLGCAN = new ZLGCAN();
         #endregion
 
         #region 车辆本身相关变量
@@ -35,6 +40,18 @@ namespace APA_DebugAssistant
         Waveform m_Waveform = new Waveform();
 
         float test_cnt = 0;
+        #endregion
+
+        #region 超声参数
+        public LIN_STP313_ReadData[] m_LIN_STP313_ReadData = new LIN_STP313_ReadData[4];
+        public LIN_STP318_ReadData[] m_LIN_STP318_ReadData = new LIN_STP318_ReadData[8];
+
+        //LRU STP313 传感器 控件显示
+        Label[][] SensingControl_LRU = new Label[4][];
+        //SRU STP318 传感器 控件显示
+        Label[][] SensingControl_SRU = new Label[8][];
+
+        Ultrasonic m_Ultrasonic = new Ultrasonic();
         #endregion
 
         #region PID参数
@@ -353,7 +370,10 @@ namespace APA_DebugAssistant
         }
         #endregion
 
-        #region 长安对接接口测试
+        #region 长安对接接口
+        /// <summary>
+        /// 用于长安车调试的接口控制函数
+        /// </summary>
         private void ChangAnInterfaceTest()
         {
             byte[] Data = new byte[32];//动态分配内存
@@ -410,6 +430,120 @@ namespace APA_DebugAssistant
                 MessageBox.Show("请打开串口", "提示");
             }
         }
+
+        private void ChangAnInterfaceCAN1()
+        {
+            uint id = 0x506;
+            byte len = 8;
+            byte CheckSum;
+            byte[] dat = new byte[8];
+            byte[] Data_Temp = new byte[8];//动态分配内存
+
+            dat[0] = (byte)(
+                                (Convert.ToByte(checkBox6.Checked) << 5)// Velocity 
+                            | (Convert.ToByte(checkBox3.Checked) << 4)// Torque 
+                            | (Convert.ToByte(checkBox2.Checked) << 3)// AEB 
+                            | (Convert.ToByte(checkBox1.Checked) << 2)// ACC
+                            | (Convert.ToByte(checkBox4.Checked) << 1)// Steering Angle
+                            | Convert.ToByte(checkBox5.Checked)      // Gear enable
+                            );
+            dat[1] = Convert.ToByte(comboBox3.SelectedIndex);// 挡位
+
+            Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox4.Text) * 10));//转向角
+            dat[2] = Data_Temp[0];
+            dat[3] = Data_Temp[1];
+
+            Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox5.Text) * 100));//转向角速度
+            dat[4] = Data_Temp[0];
+            dat[5] = Data_Temp[1];
+
+            dat[6] = 0;
+            CheckSum = 0;
+            for (int i = 0; i < 7; i++)
+            {
+                CheckSum += dat[i];
+            }
+            CheckSum ^= 0xFF;
+            dat[7] = CheckSum;
+            m_ZLGCAN.CAN_Send(0, id, len, dat);
+        }
+        private void ChangAnInterfaceCAN2()
+        {
+            uint id = 0x507;
+            byte len = 8;
+            byte CheckSum;
+            byte[] dat = new byte[8];
+            byte[] Data_Temp = new byte[8];//动态分配内存
+
+            Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox1.Text) * 1000));//ACC加速度
+            dat[0] = Data_Temp[0];
+            dat[1] = Data_Temp[1];
+
+            Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox2.Text) * 1000));//AEB减速度
+            dat[2] = Data_Temp[0];
+            dat[3] = Data_Temp[1];
+
+            Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox12.Text) * 1000));//车辆速度
+            dat[4] = Data_Temp[0];
+            dat[5] = Data_Temp[1];
+
+            dat[6] = (byte)(Convert.ToSingle(textBox3.Text) * 2);// 扭矩
+            CheckSum = 0;
+            for (int i = 0; i < 7; i++)
+            {
+                CheckSum += dat[i];
+            }
+            CheckSum ^= 0xFF;
+            dat[7] = CheckSum;
+            m_ZLGCAN.CAN_Send(0, id, len, dat);
+        }
+        #endregion
+
+        #region 终端解码函数
+        /// <summary>
+        /// Chang An vehicle imformation receive
+        /// </summary>
+        /// <param name="m_packet"></param>
+        /// <param name="m_vehicle"></param>
+        unsafe void Parse(ZLGCAN.VCI_CAN_OBJ m_packet)
+        {
+            byte[] tmp_dat = new byte[2] { 0, 0 };
+            byte[] dat = new byte[8];
+            switch (m_packet.ID)
+            {
+                case 0x400://传感器1
+                case 0x401://传感器2
+                case 0x402://传感器3
+                case 0x403://传感器4
+                case 0x404://传感器5
+                case 0x405://传感器6
+                case 0x406://传感器7
+                case 0x407://传感器8
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    m_LIN_STP318_ReadData[m_packet.ID & 0x007].TOF      = BitConverter.ToUInt16(tmp_dat, 0);
+                    m_LIN_STP318_ReadData[m_packet.ID & 0x007].status   = m_packet.Data[6];
+                    break;
+                case 0x408://传感器9
+                case 0x409://传感器10
+                case 0x40A://传感器11
+                case 0x40B://传感器12
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    m_LIN_STP313_ReadData[m_packet.ID & 0x003].TOF1 = BitConverter.ToUInt16(tmp_dat, 0);
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    m_LIN_STP313_ReadData[m_packet.ID & 0x003].TOF2 = BitConverter.ToUInt16(tmp_dat, 0);
+                    m_LIN_STP313_ReadData[m_packet.ID & 0x003].Level = m_packet.Data[4];
+                    m_LIN_STP313_ReadData[m_packet.ID & 0x003].Width = m_packet.Data[5];
+                    m_LIN_STP313_ReadData[m_packet.ID & 0x003].status = m_packet.Data[6];
+                    break;
+                default:
+
+                    break;
+            }
+        }
+
         #endregion
 
         #region 窗口显示函数
@@ -468,6 +602,19 @@ namespace APA_DebugAssistant
                 MessageBox.Show("反馈参数异常", "数据类型错误");
             }
         }
+
+        private void UltrasonicImformationShow()
+        {
+            for(int i =0;i<8;i++ )
+            {
+                m_Ultrasonic.DataMapping2Control_STP318(m_LIN_STP318_ReadData[i],ref SensingControl_SRU[i]);
+            }
+            for (int i = 0; i < 4; i++)
+            {
+                m_Ultrasonic.DataMapping2Control_STP313(m_LIN_STP313_ReadData[i], ref SensingControl_LRU[i]);
+            }
+            //label86.Text = (m_LIN_STP313_ReadData[0].TOF1 / 58.0).ToString();
+        }
         #endregion
 
         #region DataSave Relation Function
@@ -508,6 +655,7 @@ namespace APA_DebugAssistant
         #endregion
 
         #region 事件
+        #region 初始窗口事件
         public Form1()
         {
             InitializeComponent();
@@ -515,6 +663,13 @@ namespace APA_DebugAssistant
             m_SerialCom.AddBaudRate(comboBox2);
             serialPort1.Encoding = Encoding.GetEncoding("GB2312");
             serialPort1.DataReceived += new SerialDataReceivedEventHandler(serialPort1_DataReceived);
+
+            // add the thread of the can receive
+            ThreadStart CANTreadChild = new ThreadStart(CallToCANReceiveThread);
+            Thread m_CanReceiveChildThread = new Thread(CANTreadChild);
+            m_CanReceiveChildThread.Priority = ThreadPriority.Normal;
+            m_CanReceiveChildThread.IsBackground = true;
+            m_CanReceiveChildThread.Start();
         }
         private void Form1_Load(object sender, EventArgs e)
         {
@@ -538,20 +693,71 @@ namespace APA_DebugAssistant
             }
             comboBox4.SelectedIndex = 0;
 
+            //长距离传感器的控件显示
+            SensingControl_LRU = new Label[4][] {
+                new Label[5]{ label86, label87, label88, label89, label90 },
+                new Label[5]{ label91, label92, label93, label94, label95 },
+                new Label[5]{ label96, label97, label98, label99, label100 },
+                new Label[5]{ label101, label102, label103, label104, label105 }
+            };
+            //短距离传感器的控件初始化
+            SensingControl_SRU = new Label[8][]
+            {
+                new Label[2]{label70,label71 },
+                new Label[2]{label72,label79 },
+                new Label[2]{label73,label80 },
+                new Label[2]{label74,label81 },
+                new Label[2]{label75,label82 },
+                new Label[2]{label76,label83 },
+                new Label[2]{label77,label84 },
+                new Label[2]{label78,label85 }
+            };
+            //SensingControl_SRU_LabelTOF    = new TextBox[8] { textBox1, textBox6, textBox7, textBox8, textBox9, textBox10, textBox11, textBox12 };
+            //SensingControl_SRU_LabelStatus = new Label[8] { label26, label27, label28, label29, label30, label31, label41, label42 };
             //for (int i = 0; i < FunctionStatus[0].Length; i++)
             //{
             //    comboBox5.Items.Add(FunctionStatus[0][i]);
             //}
             //comboBox5.SelectedIndex = 0;
         }
+        #endregion
+
+        #region CAN接收线程
+        /// <summary>
+        /// CAN 接收线程函数
+        /// </summary>
+        public void CallToCANReceiveThread()
+        {
+            CAN_ReceiveTask();
+        }
+        /// <summary>
+        /// CAN接收任务
+        /// </summary>
+        private void CAN_ReceiveTask()
+        {
+            while (true)
+            {
+                if(m_ZLGCAN.OpenStatus == 1)
+                {
+                    ZLGCAN.VCI_CAN_OBJ[] obj = new ZLGCAN.VCI_CAN_OBJ[1];
+                    m_ZLGCAN.CAN_Receive(0,ref obj);
+                    for(int i=0;i< obj.Length;i++)
+                    {
+                        Parse(obj[i]);
+                    }
+                }
+                Thread.Sleep(10);
+            }
+        }
+        #endregion
 
         #region 串口操作事件
-        /// <summary>
-        /// 搜寻端口号
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void label1_Click(object sender, EventArgs e)
+                /// <summary>
+                /// 搜寻端口号
+                /// </summary>
+                /// <param name="sender"></param>
+                /// <param name="e"></param>
+                private void label1_Click(object sender, EventArgs e)
         {
             m_SerialCom.SearchAndAddSerialToComboBox(serialPort1, comboBox1);
         }
@@ -613,7 +819,9 @@ namespace APA_DebugAssistant
         /// <param name="e"></param>
         private void button10_Click(object sender, EventArgs e)
         {
-            ChangAnInterfaceTest();
+            //ChangAnInterfaceTest();
+            ChangAnInterfaceCAN1();
+            ChangAnInterfaceCAN2();
         }
 
         /// <summary>
@@ -748,12 +956,50 @@ namespace APA_DebugAssistant
                 m_SerialCom.Listening = false;//我用完了，ui可以关闭串口了。     
             }// end try    
         }
+
+
+        #endregion
+
+        #region CAN 操作相关事件
+        /// <summary>
+        /// CAN连接
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button11_Click(object sender, EventArgs e)
+        {
+            m_ZLGCAN.CAN_Connect(0);
+            m_ZLGCAN.CAN_Connect(1);
+            button11.Text = m_ZLGCAN.OpenStatus == 0 ? "连接" : "断开";
+        }
+        /// <summary>
+        /// 打开CAN设备
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button12_Click(object sender, EventArgs e)
+        {
+            m_ZLGCAN.CAN_Open(0);
+            m_ZLGCAN.CAN_Open(1);
+        }
+        /// <summary>
+        /// 关闭CAN设备
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button13_Click(object sender, EventArgs e)
+        {
+            m_ZLGCAN.CAN_Reset(0);
+            m_ZLGCAN.CAN_Reset(1);
+            m_ZLGCAN.CAN_Close();
+        }
         #endregion
 
         #region 定时器事件
         private void timer_show_Tick(object sender, EventArgs e)
         {
             VehicleImformationShow();
+            UltrasonicImformationShow();
             DataLog();
         }
 
