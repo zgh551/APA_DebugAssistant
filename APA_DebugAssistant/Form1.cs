@@ -6,10 +6,12 @@ using System.Drawing;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Windows.Forms.DataVisualization.Charting;
 using static APA_DebugAssistant.Ultrasonic;
 
 namespace APA_DebugAssistant
@@ -26,6 +28,9 @@ namespace APA_DebugAssistant
 
         #region CAN相关变量
         ZLGCAN m_ZLGCAN = new ZLGCAN();
+        UInt32 VehicleSendCAN    = 0;
+        UInt32 VehicleReceiveCAN = 1;
+        UInt32 TerminalCAN       = 2;
         #endregion
 
         #region 车辆本身相关变量
@@ -34,12 +39,34 @@ namespace APA_DebugAssistant
         string[] GearState = new string[8] { "No Request", "驻车", "倒车", "空挡", "前进", "无效", "保留", "保留" };
         string[] VehicleDirection = new string[4] { "前进","后退","停车","无效"};
         string[] SteeringAngleActiveStatus = new string[4] { "无请求", "请求控制", "控制激活", "无效" };
+
+        const double FRONT_EDGE_TO_CENTER = 3.54;
+        const double REAR_EDGE_TO_CENTER  = 0.905;
+        const double LEFT_EDGE_TO_CENTER  = 0.9275;
+        const double RIGHT_EDGE_TO_CENTER = 0.9275;
+
+        private Polar FrontLeftDiagonal;
+        private Polar FrontRightDiagonal;
+        private Polar RearLeftDiagonal;
+        private Polar RearRightDiagonal;
         #endregion
 
         #region 数据显示变量
         Waveform m_Waveform = new Waveform();
 
-        float test_cnt = 0;
+        Series UltrasonicDataShow = new Series();//超声显示
+
+        Series TrackDataShow = new Series();//跟踪数据显示
+        Series TrackEdgeDataShow = new Series();//跟踪车辆轮廓数据显示
+
+        Series ParkingDataShow = new Series();//车位数据显示
+        Series VehicleModuleShow = new Series();//车辆模型显示
+
+        Series TurnningPointShow = new Series();//车辆转向角显示
+
+        byte track_update_status;
+        byte parking_update_status;
+        byte vehicle_update_status;
         #endregion
 
         #region 超声参数
@@ -77,8 +104,75 @@ namespace APA_DebugAssistant
         bool DataSaveStatus = false;
         #endregion
 
+        #region Ultrasonic File Loading
+        StreamReader UltrasonicDataLoad;
+        string LoadFilePath;/* localFilePath, newFileName, fileNameExt;*/
+        Int32 FileLineCount;
+        //bool DataLoadStatus = false;
         #endregion
 
+        #region 轨迹跟踪信息变量
+        public struct Vector2d
+        {
+            public double X;
+            public double Y;
+        }
+        public struct Polar
+        {
+            public double Length;
+            public double Angle;
+        }
+        public struct LocationPoint
+        {
+            public Vector2d Position;
+            public double Yaw;
+        }
+        public struct TurnPoint
+        {
+            public Vector2d Position;
+            public double SteeringAngle;
+        }
+
+        LocationPoint TrackPoint;
+        Vector2d[] VehicleEdgePoint = new Vector2d[4];
+        private LocationPoint[] FrontTrial = new LocationPoint[10];
+        private LocationPoint[] RearTrial = new LocationPoint[10];
+        LocationPoint VehicleInitPosition = new LocationPoint();
+        LocationPoint ParkingEnterPosition = new LocationPoint();
+
+        private TurnPoint[] TurnningPointArrary = new TurnPoint[5];
+
+        private byte TrialCnt = 0,TrialPoint = 0;
+        #endregion
+
+        #region 车位信息
+        private double ParkingLength;
+        private double ParkingWidth;
+        private byte DetectorStatus;
+        private double LatMarginMove;
+        private double FrontMarginBoundary;
+        private double RearMarginBoundary;
+
+        string[] ParkingDetecterStatus = new string[4] { "待机","检测","成功","完成"};
+        #endregion
+
+        #region 泊车状态
+        byte ParkingStatus = 0;
+        Vector2d ParkingCenterPoint;
+
+        string[] ParkingPlanningStatus = new string[4] { "待机", "规划", "控制", "完成" };
+        #endregion
+
+        #region Time Relation Function Interface and Variable
+        [DllImport("winmm")]
+        static extern uint timeGetTime();
+        [DllImport("winmm")]
+        static extern void timeBeginPeriod(int t);
+        [DllImport("winmm")]
+        static extern void timeEndPeriod(int t);
+        uint LastTime,ErrTime;
+        #endregion
+        #endregion
         #region 函数
         #region 车辆参数配置函数
         private void VehicleParameterConfigure()
@@ -370,6 +464,175 @@ namespace APA_DebugAssistant
         }
         #endregion
 
+        #region 超声波数据注入
+        /// <summary>
+        /// 超声长距数据注入
+        /// </summary>
+        /// <param name="id_num"></param>
+        /// <param name="u"></param>
+        private void UltrasonicCAN(uint id_num,LIN_STP313_ReadData u)
+        {
+            uint id = 0x500 | id_num;
+            byte len = 8;
+            byte[] dat = new byte[8];
+            byte[] Data_Temp = new byte[8];//动态分配内存
+
+            dat[0] = (byte)( u.TOF1 & 0xff);
+            dat[1] = (byte)((u.TOF1 >> 8) & 0xff);
+
+            dat[2] = (byte)(u.TOF2 & 0xff);
+            dat[3] = (byte)((u.TOF2 >> 8) & 0xff);
+
+            dat[4] = u.Level;
+            dat[5] = u.Width;
+            dat[6] = u.status;
+            dat[7] = 0;
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+        }
+
+        private void VehicleVelocityCAN(Vehicle v)
+        {
+            uint id = 0x520;
+            byte len = 8;
+            byte[] dat = new byte[8];
+            byte[] Data_Temp = new byte[8];//动态分配内存
+
+            dat[0] = 0;
+            dat[1] = 0;
+            dat[2] = 0;
+            dat[3] = 0;
+            dat[4] = (byte)(( (UInt16)(v.WheelSpeedRearLeftData * 277.78))       & 0xFF);
+            dat[5] = (byte)((((UInt16)(v.WheelSpeedRearLeftData * 277.78)) >> 8) & 0xFF);
+            dat[6] = (byte)(( (UInt16)(v.WheelSpeedRearRightData * 277.78))       & 0xFF);
+            dat[7] = (byte)((((UInt16)(v.WheelSpeedRearRightData * 277.78)) >> 8) & 0xFF);
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+        }
+
+        private void VehicleStatusCAN(Vehicle v)
+        {
+            uint id = 0x510;
+            byte len = 8;
+            byte[] dat = new byte[8];
+            byte[] Data_Temp = new byte[8];//动态分配内存
+
+            dat[0] = 0;
+            dat[1] = v.SaveTime;
+            dat[2] = (byte)(( (Int16)(v.SteeringAngleActual * 10))       & 0xFF);
+            dat[3] = (byte)((((Int16)(v.SteeringAngleActual * 10)) >> 8) & 0xFF);
+            dat[4] = 0;
+            dat[5] = 0;
+            dat[6] = 0;
+            dat[7] = 0;
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+        }
+        private void FileDataParse(string [] s,ref LIN_STP313_ReadData [] u,ref Vehicle v)
+        {
+            for(int i=0;i<4;i++)
+            {
+                u[i].TOF1  = (UInt16)(Convert.ToSingle(s[6 + i]) * 58);
+                u[i].Width =(byte)( Convert.ToSingle(s[10 + i]) / 16);
+                u[i].TOF2  = (UInt16)(Convert.ToSingle(s[14 + i]) * 58);
+                u[i].Level = (byte)(Convert.ToSingle(s[18 + i]) * 255 / 3.3);
+            }
+            v.SaveTime = Convert.ToByte(s[1]);
+            v.WheelSpeedRearLeftData  = Convert.ToSingle(s[2]);
+            v.WheelSpeedRearRightData = Convert.ToSingle(s[2]);
+
+            v.SteeringAngleActual = Convert.ToSingle(s[5]);
+        }
+        #endregion
+
+        #region 超声波检车位
+        private void ParkingDetectionCommandCAN()
+        {
+            uint id = 0x530;
+            byte len = 8;
+            byte[] dat = new byte[8];
+            dat[0] = 0xA1;
+            dat[1] = 0;
+            dat[2] = 0;
+            dat[3] = 0;
+            dat[4] = 0;
+            dat[5] = 0;
+            dat[6] = 0;
+            dat[7] = 0;
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+        }
+        #endregion
+
+        #region 轨迹规划信息
+        /// <summary>
+        /// 规划开始控制命令
+        /// </summary>
+        private void PlanningCommandCAN()
+        {
+            uint id = 0x530;
+            byte len = 8;
+            byte[] dat = new byte[8];
+            dat[0] = 0x51;
+            dat[1] = 0;        
+            dat[2] = 0;
+            dat[3] = 0;    
+            dat[4] = 0;
+            dat[5] = 0;
+            dat[6] = 0;
+            dat[7] = 0;
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+        }
+        /// <summary>
+        /// 车身初始位置信息
+        /// </summary>
+        private void VehicleInitPositionCAN()
+        {
+            uint id = 0x540;
+            byte len = 8;
+            byte[] dat = new byte[8];
+            byte[] Data_Temp = new byte[8];//动态分配内存
+            float parking_length, parking_width;
+            double yaw;
+            parking_length = Convert.ToSingle(textBox16.Text);
+            parking_width = Convert.ToSingle(textBox17.Text);
+            yaw = Convert.ToSingle(textBox15.Text) * Math.PI / 180;
+            Data_Temp = BitConverter.GetBytes((Int16)( (parking_length + Convert.ToSingle(textBox13.Text) + RIGHT_EDGE_TO_CENTER * Math.Sin(yaw)) * 100));//车辆初始位置X轴向
+            dat[0] = Data_Temp[0];
+            dat[1] = Data_Temp[1];
+            Data_Temp = BitConverter.GetBytes((Int16)( (Convert.ToSingle(textBox14.Text) + RIGHT_EDGE_TO_CENTER * Math.Cos(yaw)) * 100));//车辆初始位置Y轴向
+            dat[2] = Data_Temp[0];
+            dat[3] = Data_Temp[1];
+            Data_Temp = BitConverter.GetBytes((Int16)(yaw * 100));//车辆初始偏航姿态角
+            dat[4] = Data_Temp[0];
+            dat[5] = Data_Temp[1];
+            Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox18.Text) * 100));//车辆侧移余量
+            dat[6] = Data_Temp[0];
+            dat[7] = Data_Temp[1];
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+        }
+        /// <summary>
+        /// 车位信息
+        /// </summary>
+        private void ParkingInformationCAN()
+        {
+            uint id = 0x541;
+            byte len = 8;
+            byte[] dat = new byte[8];
+            byte[] Data_Temp = new byte[8];//动态分配内存
+
+            Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox16.Text) * 1000));//车位长
+            dat[0] = Data_Temp[0];
+            dat[1] = Data_Temp[1];
+            Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox17.Text) * 1000));//车位宽
+            dat[2] = Data_Temp[0];
+            dat[3] = Data_Temp[1];
+            Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox19.Text) * 1000));//车前余量
+            dat[4] = Data_Temp[0];
+            dat[5] = Data_Temp[1];
+            Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox20.Text) * 1000));//车后余量
+            dat[6] = Data_Temp[0];
+            dat[7] = Data_Temp[1];
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+        }
+        #endregion
+
         #region 长安对接接口
         /// <summary>
         /// 用于长安车调试的接口控制函数
@@ -433,16 +696,16 @@ namespace APA_DebugAssistant
 
         private void ChangAnInterfaceCAN1()
         {
-            uint id = 0x506;
+            uint id = 0x516;
             byte len = 8;
             byte CheckSum;
             byte[] dat = new byte[8];
             byte[] Data_Temp = new byte[8];//动态分配内存
 
             dat[0] = (byte)(
-                                (Convert.ToByte(checkBox6.Checked) << 5)// Velocity 
-                            | (Convert.ToByte(checkBox3.Checked) << 4)// Torque 
-                            | (Convert.ToByte(checkBox2.Checked) << 3)// AEB 
+                              (Convert.ToByte(checkBox6.Checked) << 3)// Velocity 
+                            | (Convert.ToByte(checkBox3.Checked) << 5)// Torque 
+                            | (Convert.ToByte(checkBox2.Checked) << 4)// AEB 
                             | (Convert.ToByte(checkBox1.Checked) << 2)// ACC
                             | (Convert.ToByte(checkBox4.Checked) << 1)// Steering Angle
                             | Convert.ToByte(checkBox5.Checked)      // Gear enable
@@ -465,11 +728,11 @@ namespace APA_DebugAssistant
             }
             CheckSum ^= 0xFF;
             dat[7] = CheckSum;
-            m_ZLGCAN.CAN_Send(0, id, len, dat);
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
         }
         private void ChangAnInterfaceCAN2()
         {
-            uint id = 0x507;
+            uint id = 0x517;
             byte len = 8;
             byte CheckSum;
             byte[] dat = new byte[8];
@@ -495,11 +758,17 @@ namespace APA_DebugAssistant
             }
             CheckSum ^= 0xFF;
             dat[7] = CheckSum;
-            m_ZLGCAN.CAN_Send(0, id, len, dat);
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
         }
         #endregion
 
         #region 终端解码函数
+        private delegate void TerminalParse(ZLGCAN.VCI_CAN_OBJ m_packet);
+        private void UltrasonicParse(ZLGCAN.VCI_CAN_OBJ m_packet)
+        {
+            TerminalParse m_sampling = new TerminalParse(Parse);
+            this.Invoke(m_sampling, new object[] { m_packet });
+        }
         /// <summary>
         /// Chang An vehicle imformation receive
         /// </summary>
@@ -524,6 +793,7 @@ namespace APA_DebugAssistant
                     m_LIN_STP318_ReadData[m_packet.ID & 0x007].TOF      = BitConverter.ToUInt16(tmp_dat, 0);
                     m_LIN_STP318_ReadData[m_packet.ID & 0x007].status   = m_packet.Data[6];
                     break;
+
                 case 0x408://传感器9
                 case 0x409://传感器10
                 case 0x40A://传感器11
@@ -537,7 +807,205 @@ namespace APA_DebugAssistant
                     m_LIN_STP313_ReadData[m_packet.ID & 0x003].Level = m_packet.Data[4];
                     m_LIN_STP313_ReadData[m_packet.ID & 0x003].Width = m_packet.Data[5];
                     m_LIN_STP313_ReadData[m_packet.ID & 0x003].status = m_packet.Data[6];
+
+                    //if (m_packet.ID == 0x409)
+                    //{
+                    //    UltrasonicDataShow.Points.AddY(m_LIN_STP313_ReadData[1].TOF1 / 58);
+                    //    while (UltrasonicDataShow.Points.Count > 500)
+                    //    {
+                    //        UltrasonicDataShow.Points.RemoveAt(0);
+                    //    }
+                    //}
+
                     break;
+                case 0x416:
+                    if (m_packet.Data[1] == 0xA5)
+                    {
+                        AckId = m_packet.Data[0];
+                        AckCnt = 0;
+                        timer_ack.Enabled = true;
+                    }
+                    break;
+
+                case 0x410:
+                    m_Vehicle.EMSQECACC         = Convert.ToBoolean((m_packet.Data[0] >> 2) & 0x01);
+                    m_Vehicle.ESPQDCACC         = Convert.ToBoolean((m_packet.Data[0] >> 1) & 0x01);
+                    m_Vehicle.APA_EpasFailed    = Convert.ToBoolean( m_packet.Data[0]  & 0x01);
+
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    m_Vehicle.SteeringAngleActual = BitConverter.ToInt16(tmp_dat,0) * 0.1;
+                    tmp_dat[0] = m_packet.Data[4];
+                    tmp_dat[1] = m_packet.Data[5];
+                    m_Vehicle.SteeringAngleSpeed = (UInt16)(BitConverter.ToUInt16(tmp_dat, 0) * 0.01);
+                    tmp_dat[0] = m_packet.Data[6];
+                    tmp_dat[1] = m_packet.Data[7];
+                    m_Vehicle.SteeringTorque = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    break;
+
+                case 0x411:
+                    m_Vehicle.TargetAccelerationEnable = Convert.ToBoolean( m_packet.Data[0]       & 0x01);
+                    m_Vehicle.TargetDecelerationEnable = Convert.ToBoolean((m_packet.Data[0] >> 1) & 0x01);
+                    m_Vehicle.TorqueEnable             = Convert.ToBoolean((m_packet.Data[0] >> 2) & 0x01);
+                    m_Vehicle.VelocityEnable           = Convert.ToBoolean((m_packet.Data[0] >> 3) & 0x01);
+                    m_Vehicle.SteeringAngleActive      = Convert.ToByte   ((m_packet.Data[0] >> 4) & 0x03);
+                    m_Vehicle.GearShiftEnable          = Convert.ToBoolean((m_packet.Data[0] >> 6) & 0x01);
+
+                    m_Vehicle.GearShift = m_packet.Data[1];
+                    if(4 == m_Vehicle.GearShift)
+                    {
+                        m_Vehicle.WheelSpeedRearRightDirection = 0;
+                    }
+                    else if (2 == m_Vehicle.GearShift)
+                    {
+                        m_Vehicle.WheelSpeedRearRightDirection = 1;
+                    }
+                    else
+                    {
+                        m_Vehicle.WheelSpeedRearRightDirection = 2;
+                    }
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    m_Vehicle.TargetAccelerationACC = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[4];
+                    tmp_dat[1] = m_packet.Data[5];
+                    m_Vehicle.TargetDecelerationAEB = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[6];
+                    tmp_dat[1] = m_packet.Data[7];
+                    if(m_Vehicle.VelocityEnable)
+                    {
+                        m_Vehicle.WheelSpeedRearLeftData = BitConverter.ToUInt16(tmp_dat, 0) * 0.01;
+                        m_Vehicle.WheelSpeedRearRightData = m_Vehicle.WheelSpeedRearLeftData;
+                    }
+                    else
+                    {
+                        m_Vehicle.WheelSpeedRearLeftData = 0;
+                        m_Vehicle.WheelSpeedRearRightData = 0;
+                        m_Vehicle.WheelSpeedRearRightDirection = 2;
+                    }
+                    break;
+
+                case 0x440://反馈的车辆初始中心点位置
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    VehicleInitPosition.Position.X = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    VehicleInitPosition.Position.Y = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[4];
+                    tmp_dat[1] = m_packet.Data[5];
+                    VehicleInitPosition.Yaw = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    DetectorStatus = m_packet.Data[6];
+                    TrackPoint = VehicleInitPosition;
+                    track_update_status = 0xa5;
+                    break;
+
+                case 0x441://车位信息
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    ParkingLength = BitConverter.ToUInt16(tmp_dat, 0) * 0.001;
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    ParkingWidth = BitConverter.ToUInt16(tmp_dat, 0) * 0.001;
+                    tmp_dat[0] = m_packet.Data[4];
+                    tmp_dat[1] = m_packet.Data[5];
+                    FrontMarginBoundary = BitConverter.ToUInt16(tmp_dat, 0) * 0.001;
+                    tmp_dat[0] = m_packet.Data[6];
+                    tmp_dat[1] = m_packet.Data[7];
+                    RearMarginBoundary = BitConverter.ToUInt16(tmp_dat, 0) * 0.001;
+                    parking_update_status = 0xa5;
+                    break;
+
+                case 0x442://跟踪轨迹
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    TrackPoint.Position.X = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    TrackPoint.Position.Y = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[4];
+                    tmp_dat[1] = m_packet.Data[5];
+                    TrackPoint.Yaw = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    track_update_status = 0xa5;
+                    break;
+
+                case 0x443://前向实验记录
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    FrontTrial[m_packet.Data[6]].Position.X = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    FrontTrial[m_packet.Data[6]].Position.Y = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[4];
+                    tmp_dat[1] = m_packet.Data[5];
+                    FrontTrial[m_packet.Data[6]].Yaw = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    break;
+
+                case 0x444://后向实验记录
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    RearTrial[m_packet.Data[6]].Position.X = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    RearTrial[m_packet.Data[6]].Position.Y = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[4];
+                    tmp_dat[1] = m_packet.Data[5];
+                    RearTrial[m_packet.Data[6]].Yaw = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    break;
+
+                case 0x445://车位进库点位置
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    ParkingEnterPosition.Position.X = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    ParkingEnterPosition.Position.Y = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[4];
+                    tmp_dat[1] = m_packet.Data[5];
+                    ParkingEnterPosition.Yaw = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    TrialCnt = m_packet.Data[6];
+                    if(0x5A == m_packet.Data[7])
+                    {
+                        TrackListBox.Items.Add("车位满足泊车条件");
+                        TrackListBox.Items.Add("尝试次数为：" + TrialCnt.ToString());
+                    }
+                    else
+                    {
+                        TrackListBox.Items.Add("请重新选择车位！");
+                    }
+                    vehicle_update_status = 0xa5;
+                    break;
+
+                case 0x446:
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    TurnningPointArrary[m_packet.Data[6]].Position.X = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    TurnningPointArrary[m_packet.Data[6]].Position.Y = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[4];
+                    tmp_dat[1] = m_packet.Data[5];
+                    TurnningPointArrary[m_packet.Data[6]].SteeringAngle = BitConverter.ToInt16(tmp_dat, 0) * 0.1;
+                    vehicle_update_status = 0xa6;
+                    break;
+
+                case 0x447:
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    ParkingCenterPoint.X = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    ParkingCenterPoint.Y = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    
+                    TrackListBox.Items.Add("进库中心点：");
+                    TrackListBox.Items.Add("X:" + ParkingCenterPoint.X.ToString());
+                    TrackListBox.Items.Add("Y:" + ParkingCenterPoint.Y.ToString());
+                    break;
+
+                case 0x448:
+                    ParkingStatus = m_packet.Data[0];
+                    break;
+
                 default:
 
                     break;
@@ -546,7 +1014,107 @@ namespace APA_DebugAssistant
 
         #endregion
 
+        #region 模拟车辆接收解码
+        unsafe void VehicleParse(ZLGCAN.VCI_CAN_OBJ m_packet)
+        {
+            byte[] tmp_dat = new byte[2] { 0, 0 };
+            byte[] dat = new byte[8];
+            switch (m_packet.ID)
+            {
+                case 0x6fe:
+                    tmp_dat[1] = m_packet.Data[6];
+                    tmp_dat[0] = m_packet.Data[7];
+                    m_Vehicle.SteeringAngle = BitConverter.ToInt16(tmp_dat, 0) * 0.1;
+                    break;
+
+                case 0x6ff:
+
+                    break;
+
+                case 0x6e9:
+
+                    break;
+
+                default:
+
+                    break;
+            }
+        }
+        #endregion
+
+        #region 模拟车辆发送数据编码
+        /// <summary>
+        /// 模拟车辆发送速度信息
+        /// </summary>
+        private void EPB_VehicleSpeedSimulation()
+        {
+            uint id = 0x208;
+            byte len = 8;
+            UInt16 temp_speed;
+            byte[] dat = new byte[8];
+
+            temp_speed = (UInt16)(m_Vehicle.WheelSpeedRearRightData * 64);
+
+            dat[0] = (byte)(m_Vehicle.WheelSpeedRearRightDirection << 5 | ((temp_speed >> 8) & 0x1f));
+            dat[1] = (byte)(temp_speed & 0xff);
+            dat[2] = dat[0];
+            dat[3] = dat[1];
+            dat[4] = dat[0];
+            dat[5] = dat[1];
+            dat[6] = dat[0];
+            dat[7] = dat[1];
+            m_ZLGCAN.CAN_Send(VehicleSendCAN, id, len, dat);
+        }
+
+        /// <summary>
+        /// 模拟车辆发送转向角信息
+        /// </summary>
+        private void SAS_SteeringAngleSimulation()
+        {
+            uint id = 0x180;
+            byte len = 8;
+            byte[] dat = new byte[8];
+            Int16 temp_steering;
+            temp_steering = (Int16)(m_Vehicle.SteeringAngle * 10);
+
+            dat[0] = (byte)(temp_steering >> 8);
+            dat[1] = (byte)(temp_steering & 0xff);
+            dat[2] = 0;
+            dat[3] = 0;
+            dat[4] = 0;
+            dat[5] = 0;
+            dat[6] = 0;
+            dat[7] = 0;
+            m_ZLGCAN.CAN_Send(VehicleSendCAN, id, len, dat);
+        }
+
+        /// <summary>
+        /// 模拟车辆挡位信息
+        /// </summary>
+        private void TCU_GearSimulation()
+        {
+            uint id = 0x268;
+            byte len = 8;
+            byte[] dat = new byte[8];
+
+            dat[0] = 0;
+            dat[1] = (m_Vehicle.GearShift == 1)? (byte)0x0A :
+                     (m_Vehicle.GearShift == 2) ? (byte)0x09 :
+                     (m_Vehicle.GearShift == 3) ? (byte)0x00 : (byte)0x01;
+            dat[2] = 0;
+            dat[3] = 0;
+            dat[4] = 0;
+            dat[5] = 0;
+            dat[6] = 0;
+            dat[7] = 0;
+            m_ZLGCAN.CAN_Send(VehicleSendCAN, id, len, dat);
+        }
+        #endregion
+
         #region 窗口显示函数
+        /// <summary>
+        /// 车辆信息显示
+        /// </summary>
         private void VehicleImformationShow()
         {
             try
@@ -557,14 +1125,16 @@ namespace APA_DebugAssistant
                 label6.ForeColor = m_Vehicle.ESPQDCACC ? Color.AliceBlue : Color.BlueViolet;
                 label7.ForeColor = m_Vehicle.EMSQECACC ? Color.AliceBlue : Color.BlueViolet;
 
-                label52.ForeColor = m_Vehicle.TargetAccelerationEnable ? Color.DarkGoldenrod : Color.AliceBlue;
-                label53.ForeColor = m_Vehicle.TargetDecelerationEnable ? Color.DarkGoldenrod : Color.AliceBlue;
-                label54.ForeColor = m_Vehicle.TorqueEnable             ? Color.DarkGoldenrod : Color.AliceBlue;
-                label55.ForeColor = m_Vehicle.GearShiftEnable          ? Color.DarkGoldenrod : Color.AliceBlue;
+                label52.ForeColor  = m_Vehicle.TargetAccelerationEnable ? Color.DarkGoldenrod : Color.AliceBlue;
+                label53.ForeColor  = m_Vehicle.TargetDecelerationEnable ? Color.DarkGoldenrod : Color.AliceBlue;
+                label54.ForeColor  = m_Vehicle.TorqueEnable             ? Color.DarkGoldenrod : Color.AliceBlue;
+                label55.ForeColor  = m_Vehicle.GearShiftEnable          ? Color.DarkGoldenrod : Color.AliceBlue;
+                label108.ForeColor = m_Vehicle.VelocityEnable           ? Color.DarkGoldenrod : Color.AliceBlue;
 
                 label59.Text = SteeringAngleActiveStatus[m_Vehicle.SteeringAngleActive];
                 label60.Text = m_Vehicle.TargetAccelerationACC.ToString();
-                label61.Text = m_Vehicle.Torque.ToString();
+                label61.Text = m_Vehicle.TargetDecelerationAEB.ToString();
+                label107.Text = m_Vehicle.Torque.ToString();
 
                 label11.Text = m_Vehicle.SteeringAngleActual.ToString();//转向角
                 label12.Text = m_Vehicle.SteeringAngleSpeed.ToString();//转向角速度
@@ -603,6 +1173,9 @@ namespace APA_DebugAssistant
             }
         }
 
+        /// <summary>
+        /// 超声波数据显示
+        /// </summary>
         private void UltrasonicImformationShow()
         {
             for(int i =0;i<8;i++ )
@@ -613,7 +1186,101 @@ namespace APA_DebugAssistant
             {
                 m_Ultrasonic.DataMapping2Control_STP313(m_LIN_STP313_ReadData[i], ref SensingControl_LRU[i]);
             }
-            //label86.Text = (m_LIN_STP313_ReadData[0].TOF1 / 58.0).ToString();
+        }
+
+        /// <summary>
+        /// 跟踪轨迹显示
+        /// </summary>
+        private void TrackInformationShow()
+        {
+            if(0xa5 == track_update_status)
+            {
+                track_update_status = 0x00;
+                label120.Text = TrackPoint.Position.X.ToString();
+                label121.Text = TrackPoint.Position.Y.ToString();
+                label122.Text = TrackPoint.Yaw.ToString();
+
+                TrackDataShow.Points.AddXY(TrackPoint.Position.X, TrackPoint.Position.Y);
+
+                AxisRotation(TrackPoint, FrontLeftDiagonal, ref VehicleEdgePoint[0]);
+                AxisRotation(TrackPoint, FrontRightDiagonal, ref VehicleEdgePoint[1]);
+                AxisRotation(TrackPoint, RearLeftDiagonal, ref VehicleEdgePoint[3]);
+                AxisRotation(TrackPoint, RearRightDiagonal, ref VehicleEdgePoint[2]);
+                TrackEdgeDataShow.Points.Clear();
+                for (int i = 0; i < 4; i++)
+                {
+                    TrackEdgeDataShow.Points.AddXY(VehicleEdgePoint[i].X, VehicleEdgePoint[i].Y);
+                }
+                TrackEdgeDataShow.Points.AddXY(VehicleEdgePoint[0].X, VehicleEdgePoint[0].Y);
+            }
+        }
+
+        /// <summary>
+        /// 车位显示
+        /// </summary>
+        private void ParkingShow()
+        {
+            if(0xa5 == parking_update_status)
+            {
+                parking_update_status = 0;
+                ParkingDataShow.Points.Clear();
+                ParkingDataShow.Points.AddXY(-1, 0);
+                ParkingDataShow.Points.AddXY(0, 0);
+                ParkingDataShow.Points.AddXY(0, -ParkingWidth);
+                ParkingDataShow.Points.AddXY(ParkingLength, -ParkingWidth);
+                ParkingDataShow.Points.AddXY(ParkingLength, 0);
+                ParkingDataShow.Points.AddXY(12, 0);
+
+                label124.Text = "X:" + VehicleInitPosition.Position.X.ToString() + "m";
+                label125.Text = "Y:" + VehicleInitPosition.Position.Y.ToString() + "m";
+                label126.Text = "Yaw:" + (VehicleInitPosition.Yaw * 57.3).ToString() + "°";
+
+                label127.Text = "L:" + ParkingLength.ToString() + "m";
+                label128.Text = "W:" + ParkingWidth.ToString() + "m";
+
+                label129.Text = (DetectorStatus < 4 ? ParkingDetecterStatus[DetectorStatus] : "异常");
+            }
+        }
+
+        /// <summary>
+        /// 车辆车身信息
+        /// </summary>
+        /// <param name="c"></param>
+        private void VehicleShow(LocationPoint c)
+        {
+            label123.Text = TrialCnt.ToString();
+            VehicleModuleShow.Points.Clear();
+            AxisRotation(c, FrontLeftDiagonal, ref VehicleEdgePoint[0]);
+            AxisRotation(c, FrontRightDiagonal, ref VehicleEdgePoint[1]);
+            AxisRotation(c, RearLeftDiagonal, ref VehicleEdgePoint[3]);
+            AxisRotation(c, RearRightDiagonal, ref VehicleEdgePoint[2]);
+            for (int i = 0; i < 4; i++)
+            {
+                VehicleModuleShow.Points.AddXY(VehicleEdgePoint[i].X, VehicleEdgePoint[i].Y);
+            }
+            VehicleModuleShow.Points.AddXY(VehicleEdgePoint[0].X, VehicleEdgePoint[0].Y);
+        }
+
+        private void TurnningAngleShiftShow()
+        {
+            if(vehicle_update_status == 0xa6)
+            {
+                vehicle_update_status = 0;
+                TurnningPointShow.Points.Clear();
+                for (int i = 0; i < 3; i++)
+                {
+                    TurnningPointShow.Points.AddXY(TurnningPointArrary[i].Position.X,
+                                                   TurnningPointArrary[i].Position.Y);
+                    TrackListBox.Items.Add("第" + i.ToString() + "转向点:" );
+                    TrackListBox.Items.Add("X:" + TurnningPointArrary[i].Position.X.ToString());
+                    TrackListBox.Items.Add("Y:" + TurnningPointArrary[i].Position.Y.ToString());
+                }
+            }
+            
+        }
+        private void ParkingControlShow()
+        {
+            label133.Text = ParkingStatus < 4 ? ParkingPlanningStatus[ParkingStatus]:"异常";
         }
         #endregion
 
@@ -650,10 +1317,77 @@ namespace APA_DebugAssistant
                 );
             }
         }
+
+        private void ParkingDetectionDataLog()
+        {
+            ErrTime = timeGetTime() - LastTime;
+            //数据保存
+            if (DataSaveStatus)
+            {
+                DataSave.Write( "{0:D} " +
+                                "{1:R16} {2:D} {3:R16} {4:R16} " +
+                                "{5:R16} {6:R16} {7:R16} {8:R16} " +
+                                "{9:D} {10:D} {11:D} {12:D} {13:D} " +
+                                "{14:D} {15:D} {16:D} {17:D} {18:D} " +
+                                "{19:D} {20:D} {21:D} {22:D} {23:D} " +
+                                "{24:D} {25:D} {26:D} {27:D} {28:D} " +
+                                "{29:D} {30:D} {31:D} {32:D} {33:D} " +
+                                "\r\n",
+                                ErrTime,
+                                /// Steering Angle 
+                                m_Vehicle.SteeringAngleActual,
+                                m_Vehicle.SteeringAngleSpeed,
+                                m_Vehicle.SteeringTorque,
+                                /// Vehicle Speed
+                                m_Vehicle.VehicleSpeed,
+                                /// WheelSpeed
+                                m_Vehicle.WheelSpeedFrontLeftData,
+                                m_Vehicle.WheelSpeedFrontRightData,
+                                m_Vehicle.WheelSpeedRearLeftData,
+                                m_Vehicle.WheelSpeedRearRightData,
+                                /// WheelSpeedPulse
+                                m_Vehicle.WheelSpeedFrontLeftPulse,
+                                m_Vehicle.WheelSpeedFrontRightPulse,
+                                m_Vehicle.WheelSpeedRearLeftPulse,
+                                m_Vehicle.WheelSpeedRearRightPulse,
+                                m_Vehicle.WheelSpeedDirection,
+                                // Ultrasonic
+                                m_LIN_STP313_ReadData[0].TOF1,
+                                m_LIN_STP313_ReadData[0].TOF2,
+                                m_LIN_STP313_ReadData[0].Level,
+                                m_LIN_STP313_ReadData[0].Width,
+                                m_LIN_STP313_ReadData[0].status,
+                                m_LIN_STP313_ReadData[1].TOF1,
+                                m_LIN_STP313_ReadData[1].TOF2,
+                                m_LIN_STP313_ReadData[1].Level,
+                                m_LIN_STP313_ReadData[1].Width,
+                                m_LIN_STP313_ReadData[1].status,
+                                m_LIN_STP313_ReadData[2].TOF1,
+                                m_LIN_STP313_ReadData[2].TOF2,
+                                m_LIN_STP313_ReadData[2].Level,
+                                m_LIN_STP313_ReadData[2].Width,
+                                m_LIN_STP313_ReadData[2].status,
+                                m_LIN_STP313_ReadData[3].TOF1,
+                                m_LIN_STP313_ReadData[3].TOF2,
+                                m_LIN_STP313_ReadData[3].Level,
+                                m_LIN_STP313_ReadData[3].Width,
+                                m_LIN_STP313_ReadData[3].status
+                );
+            }
+            LastTime = timeGetTime();
+        }
+        #endregion
+
+        #region utils math
+
+        private void AxisRotation(LocationPoint c, Polar p,ref Vector2d v)
+        {
+            v.X = c.Position.X + p.Length * Math.Cos(c.Yaw + p.Angle);
+            v.Y = c.Position.Y + p.Length * Math.Sin(c.Yaw + p.Angle);
+        }
         #endregion
 
         #endregion
-
         #region 事件
         #region 初始窗口事件
         public Form1()
@@ -663,7 +1397,63 @@ namespace APA_DebugAssistant
             m_SerialCom.AddBaudRate(comboBox2);
             serialPort1.Encoding = Encoding.GetEncoding("GB2312");
             serialPort1.DataReceived += new SerialDataReceivedEventHandler(serialPort1_DataReceived);
+            ///超声波数据显示
+            ultrasonic_chart.Series.Add(UltrasonicDataShow);
+            UltrasonicDataShow.ChartType = SeriesChartType.Point;
+            UltrasonicDataShow.BorderWidth = 5;
+            UltrasonicDataShow.BorderDashStyle = ChartDashStyle.Dash;
+            UltrasonicDataShow.Color = Color.Green;
+            UltrasonicDataShow.IsVisibleInLegend = true;
+            UltrasonicDataShow.LegendText = "超声波数据";
 
+            /// 车辆泊车图形显示
+            track_chart.ChartAreas[0].AxisX.Maximum = 12;
+            track_chart.ChartAreas[0].AxisX.Minimum = -1;
+            track_chart.ChartAreas[0].AxisY.Maximum = 5;
+            track_chart.ChartAreas[0].AxisY.Minimum = -3;
+            track_chart.ChartAreas[0].AxisX.Interval = 0.5;
+            track_chart.ChartAreas[0].AxisY.Interval = 0.5;
+
+            track_chart.Series.Add(TrackDataShow);
+            TrackDataShow.ChartType = SeriesChartType.FastLine;
+            TrackDataShow.BorderWidth = 2;
+            TrackDataShow.BorderDashStyle = ChartDashStyle.Dash;
+            TrackDataShow.Color = Color.Red;
+            TrackDataShow.IsVisibleInLegend = true;
+            TrackDataShow.LegendText = "车辆中心点";
+
+            track_chart.Series.Add(ParkingDataShow);
+            ParkingDataShow.ChartType = SeriesChartType.FastLine;
+            ParkingDataShow.BorderWidth = 5;
+            ParkingDataShow.BorderDashStyle = ChartDashStyle.Solid;
+            ParkingDataShow.Color = Color.Green;
+            ParkingDataShow.IsVisibleInLegend = true;
+            ParkingDataShow.LegendText = "车位";
+
+            
+            track_chart.Series.Add(TrackEdgeDataShow);
+            TrackEdgeDataShow.ChartType = SeriesChartType.FastLine;
+            TrackEdgeDataShow.BorderWidth = 3;
+            TrackEdgeDataShow.BorderDashStyle = ChartDashStyle.Solid;
+            TrackEdgeDataShow.Color = Color.DarkRed;
+            TrackEdgeDataShow.IsVisibleInLegend = true;
+            TrackEdgeDataShow.LegendText = "车辆实时姿态";
+
+            track_chart.Series.Add(VehicleModuleShow);
+            VehicleModuleShow.ChartType = SeriesChartType.FastLine;
+            VehicleModuleShow.BorderWidth = 3;
+            VehicleModuleShow.BorderDashStyle = ChartDashStyle.Solid;
+            VehicleModuleShow.Color = Color.Blue;
+            VehicleModuleShow.IsVisibleInLegend = true;
+            VehicleModuleShow.LegendText = "车辆模型";
+          
+            track_chart.Series.Add(TurnningPointShow);
+            TurnningPointShow.ChartType = SeriesChartType.FastPoint;
+            TurnningPointShow.BorderWidth = 16;
+            TurnningPointShow.BorderDashStyle = ChartDashStyle.Solid;
+            TurnningPointShow.Color = Color.DarkGreen;
+            TurnningPointShow.IsVisibleInLegend = true;
+            TurnningPointShow.LegendText = "转向角切换点";
             // add the thread of the can receive
             ThreadStart CANTreadChild = new ThreadStart(CallToCANReceiveThread);
             Thread m_CanReceiveChildThread = new Thread(CANTreadChild);
@@ -712,14 +1502,32 @@ namespace APA_DebugAssistant
                 new Label[2]{label77,label84 },
                 new Label[2]{label78,label85 }
             };
-            //SensingControl_SRU_LabelTOF    = new TextBox[8] { textBox1, textBox6, textBox7, textBox8, textBox9, textBox10, textBox11, textBox12 };
-            //SensingControl_SRU_LabelStatus = new Label[8] { label26, label27, label28, label29, label30, label31, label41, label42 };
-            //for (int i = 0; i < FunctionStatus[0].Length; i++)
-            //{
-            //    comboBox5.Items.Add(FunctionStatus[0][i]);
-            //}
-            //comboBox5.SelectedIndex = 0;
-        }
+            /// 车辆初始参数计算
+            /// 
+            FrontLeftDiagonal.Length = Math.Sqrt( Math.Pow(LEFT_EDGE_TO_CENTER, 2) + Math.Pow(FRONT_EDGE_TO_CENTER,2));
+            FrontLeftDiagonal.Angle  = Math.Atan(LEFT_EDGE_TO_CENTER/ FRONT_EDGE_TO_CENTER);
+            FrontRightDiagonal.Length = FrontLeftDiagonal.Length;
+            FrontRightDiagonal.Angle = -FrontLeftDiagonal.Angle;
+
+
+            RearLeftDiagonal.Length = -Math.Sqrt(Math.Pow(LEFT_EDGE_TO_CENTER, 2) + Math.Pow(REAR_EDGE_TO_CENTER, 2)); ;
+            RearLeftDiagonal.Angle  = -Math.Atan(LEFT_EDGE_TO_CENTER / REAR_EDGE_TO_CENTER);
+
+            RearRightDiagonal.Length =  RearLeftDiagonal.Length;
+            RearRightDiagonal.Angle  = -RearLeftDiagonal.Angle;
+            ///车位信息的初始化
+            ParkingLength = Convert.ToDouble(textBox16.Text);
+            ParkingWidth  = Convert.ToDouble(textBox17.Text);
+            VehicleInitPosition.Position.X   = Convert.ToDouble(textBox13.Text) + ParkingLength + m_Vehicle.RearOverhangDistance;
+            VehicleInitPosition.Position.Y   = Convert.ToDouble(textBox14.Text) + m_Vehicle.WheelAxisWidthHalf;
+            VehicleInitPosition.Yaw = Convert.ToDouble(textBox15.Text);
+            LatMarginMove       = Convert.ToDouble(textBox18.Text);
+            FrontMarginBoundary = Convert.ToDouble(textBox19.Text);
+            RearMarginBoundary  = Convert.ToDouble(textBox20.Text);
+
+            ParkingShow();
+            VehicleShow(VehicleInitPosition);
+    }
         #endregion
 
         #region CAN接收线程
@@ -740,10 +1548,15 @@ namespace APA_DebugAssistant
                 if(m_ZLGCAN.OpenStatus == 1)
                 {
                     ZLGCAN.VCI_CAN_OBJ[] obj = new ZLGCAN.VCI_CAN_OBJ[1];
-                    m_ZLGCAN.CAN_Receive(0,ref obj);
+                    m_ZLGCAN.CAN_Receive(TerminalCAN, ref obj);
                     for(int i=0;i< obj.Length;i++)
                     {
-                        Parse(obj[i]);
+                        UltrasonicParse(obj[i]);
+                    }
+                    m_ZLGCAN.CAN_Receive(VehicleReceiveCAN, ref obj);
+                    for (int i = 0; i < obj.Length; i++)
+                    {
+                        VehicleParse(obj[i]);
                     }
                 }
                 Thread.Sleep(10);
@@ -752,12 +1565,12 @@ namespace APA_DebugAssistant
         #endregion
 
         #region 串口操作事件
-                /// <summary>
-                /// 搜寻端口号
-                /// </summary>
-                /// <param name="sender"></param>
-                /// <param name="e"></param>
-                private void label1_Click(object sender, EventArgs e)
+        /// <summary>
+        /// 搜寻端口号
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void label1_Click(object sender, EventArgs e)
         {
             m_SerialCom.SearchAndAddSerialToComboBox(serialPort1, comboBox1);
         }
@@ -968,9 +1781,15 @@ namespace APA_DebugAssistant
         /// <param name="e"></param>
         private void button11_Click(object sender, EventArgs e)
         {
-            m_ZLGCAN.CAN_Connect(0);
-            m_ZLGCAN.CAN_Connect(1);
-            button11.Text = m_ZLGCAN.OpenStatus == 0 ? "连接" : "断开";
+            if(1 == m_ZLGCAN.ConnectStatus)
+            {
+                m_ZLGCAN.CAN_Close();
+            }
+            else
+            {
+                m_ZLGCAN.CAN_Connect();
+            }
+            button11.Text = m_ZLGCAN.ConnectStatus == 0 ? "连接" : "断开";
         }
         /// <summary>
         /// 打开CAN设备
@@ -979,8 +1798,15 @@ namespace APA_DebugAssistant
         /// <param name="e"></param>
         private void button12_Click(object sender, EventArgs e)
         {
-            m_ZLGCAN.CAN_Open(0);
-            m_ZLGCAN.CAN_Open(1);
+            if (0 == m_ZLGCAN.CAN_Open(0) && 0 == m_ZLGCAN.CAN_Open(1) && 0 == m_ZLGCAN.CAN_Open(2))
+            {
+                m_ZLGCAN.OpenStatus = 1;
+            }
+            else
+            {
+                m_ZLGCAN.OpenStatus = 0;
+            }
+            
         }
         /// <summary>
         /// 关闭CAN设备
@@ -991,16 +1817,69 @@ namespace APA_DebugAssistant
         {
             m_ZLGCAN.CAN_Reset(0);
             m_ZLGCAN.CAN_Reset(1);
-            m_ZLGCAN.CAN_Close();
+            m_ZLGCAN.CAN_Reset(2);
+            m_ZLGCAN.OpenStatus = 0;
         }
+
+
         #endregion
 
         #region 定时器事件
         private void timer_show_Tick(object sender, EventArgs e)
         {
+            if(checkBox7.Checked)
+            {
+                EPB_VehicleSpeedSimulation();
+                SAS_SteeringAngleSimulation();
+                TCU_GearSimulation();
+            }
+
+            ParkingControlShow();
+
             VehicleImformationShow();
             UltrasonicImformationShow();
-            DataLog();
+            TrackInformationShow();
+            ParkingShow();
+            TurnningAngleShiftShow();
+            if (0xa5 == vehicle_update_status)
+            {
+                vehicle_update_status = 0;
+                VehicleShow(ParkingEnterPosition);
+            }
+            
+            //DataLog();
+            ParkingDetectionDataLog();//检车位的数据保存
+        }
+
+        /// <summary>
+        /// 超声波数据定时注入
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void InjectionUltrasonicTimer_Tick(object sender, EventArgs e)
+        {
+            string line;
+            if((line = UltrasonicDataLoad.ReadLine() ) != null)
+            {
+                string[] s = line.Split(' ');
+
+                FileDataParse(s,ref m_LIN_STP313_ReadData,ref m_Vehicle);
+                
+                UltrasonicDataShow.Points.AddY(m_LIN_STP313_ReadData[1].TOF1 / 58);
+                //while (UltrasonicDataShow.Points.Count > 100)
+                //{
+                //    UltrasonicDataShow.Points.RemoveAt(0);
+                //}
+                UltrasonicCAN(9, m_LIN_STP313_ReadData[1]);
+                VehicleVelocityCAN(m_Vehicle);
+                VehicleStatusCAN(m_Vehicle);
+                progressBar1.Value++;
+            }
+            else
+            {
+                UltrasonicDataLoad.Close();
+                InjectionUltrasonicTimer.Enabled = false;
+            }
         }
 
         /// <summary>
@@ -1096,6 +1975,8 @@ namespace APA_DebugAssistant
                 button7.Text = "波形图显示开启";
             }
         }
+
+
         #endregion
 
         #region 数据保存
@@ -1126,6 +2007,8 @@ namespace APA_DebugAssistant
             }
         }
 
+
+
         /// <summary>
         /// 开始保存数据
         /// </summary>
@@ -1148,6 +2031,7 @@ namespace APA_DebugAssistant
             button6.Text = DataSaveStatus ? "取消保存" : "开始保存";
             button6.BackColor = DataSaveStatus ? Color.Green : Color.Red;
         }
+
         #endregion
 
         #region 模式切换事件
@@ -1173,6 +2057,8 @@ namespace APA_DebugAssistant
             }
         }
 
+
+
         /// <summary>
         /// Configure the system Working State and function status
         /// </summary>
@@ -1182,11 +2068,169 @@ namespace APA_DebugAssistant
         {
             SystemModuleConfigure();
         }
+
+
+        #endregion
+
+        #region 超声波数据注入
+        private void button14_Click(object sender, EventArgs e)
+        {
+            openFileDialog1.Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*";
+            openFileDialog1.InitialDirectory = "D:";
+            openFileDialog1.Title = "请选择加载文件路径";
+            openFileDialog1.FilterIndex = 0;
+            openFileDialog1.RestoreDirectory = true;
+            //saveFileDialog1.DefaultExt = "txt";
+            //saveFileDialog1.FileName = "Data.txt";
+            //saveFileDialog1.AddExtension = true;
+            DialogResult dr = openFileDialog1.ShowDialog();
+            if (dr == DialogResult.OK && openFileDialog1.FileName.Length > 0)
+            {
+                //获得文件路径
+                LoadFilePath = openFileDialog1.FileName.ToString();
+                try
+                {
+                    using (StreamReader sr = new StreamReader(LoadFilePath, Encoding.ASCII))
+                    {
+                        FileLineCount = sr.ReadToEnd().Split('\n').Length;
+                    }
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+                try
+                {
+                    UltrasonicDataLoad = new StreamReader(LoadFilePath, Encoding.ASCII);
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+                progressBar1.Maximum = FileLineCount-1;
+                progressBar1.Value = 0;
+                UltrasonicDataShow.Points.Clear();
+                //CurrentLine = 0;
+                InjectionUltrasonicTimer.Enabled = true;
+                ////获取文件路径，不带文件名
+                //FilePath = localFilePath.Substring(0, localFilePath.LastIndexOf("\\"));
+                ////获取文件名，不带路径
+                //fileNameExt = localFilePath.Substring(localFilePath.LastIndexOf("\\") + 1);
+
+
+                //StreamReader UltrasonicDataLoad;
+                //string LoadFilePath;/* localFilePath, newFileName, fileNameExt;*/
+                //bool DataLoadStatus = false;
+            }
+        }
+
+        /// <summary>
+        /// 超声数据注入继续
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button15_Click(object sender, EventArgs e)
+        {
+            InjectionUltrasonicTimer.Enabled = true;
+        }
+        /// <summary>
+        /// 超声波数据注入暂停
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button16_Click(object sender, EventArgs e)
+        {
+            InjectionUltrasonicTimer.Enabled = false;
+        }
+
+        private void button17_Click(object sender, EventArgs e)
+        {
+            UltrasonicDataShow.Points.Clear();
+        }
+        #endregion
+
+        #region 车辆轨迹跟踪
+        /// <summary>
+        /// 图像清零
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button18_Click(object sender, EventArgs e)
+        {
+            TrackDataShow.Points.Clear();
+        }
+
+        /// <summary>
+        /// 泊车开始
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button19_Click(object sender, EventArgs e)
+        {
+            TrackListBox.Items.Clear();
+
+            VehicleInitPositionCAN();
+            ParkingInformationCAN();
+            PlanningCommandCAN();
+        }
+
+        /// <summary>
+        /// 切换上一帧
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button20_Click(object sender, EventArgs e)
+        {
+            if ( TrialPoint <= 0)
+            {
+                TrialPoint = 0;
+            }
+            else
+            {
+                TrialPoint--;
+            }
+            if(TrialCnt % 2 == 1)
+            {
+                VehicleShow(FrontTrial[TrialPoint]);
+            }
+            else
+            {
+                VehicleShow(RearTrial[TrialPoint]);
+            }
+        }
+
+        /// <summary>
+        /// 切换下一帧
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button21_Click(object sender, EventArgs e)
+        {
+            if (TrialPoint >= TrialCnt)
+            {
+                TrialPoint = TrialCnt;
+            }
+            else
+            {
+                TrialPoint++;
+            }
+            if (TrialCnt % 2 == 1)
+            {
+                VehicleShow(FrontTrial[TrialPoint]);
+            }
+            else
+            {
+                VehicleShow(RearTrial[TrialPoint]);
+            }
+        }
+        #endregion
+
+        #region 车位检车事件
+        private void button23_Click(object sender, EventArgs e)
+        {
+            ParkingDetectionCommandCAN();
+        }
         #endregion
         #endregion
-
-
-
-
     }
 }

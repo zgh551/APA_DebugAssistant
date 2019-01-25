@@ -211,6 +211,7 @@ namespace APA_DebugAssistant
 
         private const UInt32 STATUS_OK = 1;
         private UInt32 m_bOpen = 0;
+        private UInt32 m_bConnect = 0;
         private UInt32 m_devind = 0;
         private UInt32 m_canind = 0;
 
@@ -237,6 +238,18 @@ namespace APA_DebugAssistant
                 return m_bOpen;
             }
         }
+        public UInt32 ConnectStatus
+        {
+            set
+            {
+                m_bConnect = value;
+            }
+            get
+            {
+                return m_bConnect;
+            }
+        }
+        
         #endregion
 
         public ZLGCAN()
@@ -250,26 +263,39 @@ namespace APA_DebugAssistant
         /// CAN设备连接
         /// </summary>
         /// <param name="id"> the can id number </param>
-        unsafe public void CAN_Connect(UInt32 id)
+        unsafe public void CAN_Connect()
         {
-            m_canind = id;
-            if(m_bOpen == 0)
+            if(ConnectStatus == 0)
             {
                 if (VCI_OpenDevice(m_devtype, m_devind, 0) == 0)
                 {
                     MessageBox.Show("打开设备失败,请检查设备类型和设备索引号是否正确", "错误",
                             MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                    return;
+                    ConnectStatus = 0;
+                }
+                else
+                {
+                    ConnectStatus = 1;
                 }
             }
-            m_bOpen = 1;
+        }
+
+        /// <summary>
+        /// 启动CAN的端口号
+        /// </summary>
+        /// <param name="id"></param>
+        unsafe public Int16 CAN_Open(UInt32 id)
+        {
+            if (ConnectStatus == 0 || 1 == OpenStatus)
+                return -1;
+
             //USB-E-U 代码
             UInt32 baud = GCanBrTab[2];
-            if (VCI_SetReference(m_devtype, m_devind, m_canind, 0, (byte*)&baud) != STATUS_OK)
+            if (VCI_SetReference(m_devtype, m_devind, id, 0, (byte*)&baud) != STATUS_OK)
             {
                 MessageBox.Show("设置波特率错误，打开设备0失败!", "错误", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                 VCI_CloseDevice(m_devtype, m_devind);
-                return;
+                return -1;
             }
             //滤波设置
             //////////////////////////////////////////////////////////////////////////
@@ -280,7 +306,7 @@ namespace APA_DebugAssistant
             config.Timing1 = 14;// System.Convert.ToByte("0x" + textBox_Time1.Text, 16);
             config.Filter = 1;// 单滤波 (Byte)comboBox_Filter.SelectedIndex;
             config.Mode = 0;//正常模式 (Byte)comboBox_Mode.SelectedIndex;
-            VCI_InitCAN(m_devtype, m_devind, m_canind, ref config);
+            VCI_InitCAN(m_devtype, m_devind, id, ref config);
             //////////////////////////////////////////////////////////////////////////
             Int32 filterMode = 2;// comboBox_e_u_Filter.SelectedIndex;
             if (2 != filterMode)//不是禁用
@@ -291,27 +317,18 @@ namespace APA_DebugAssistant
                 filterRecord.End = 0xff;// System.Convert.ToUInt32("0x" + textBox_e_u_endid.Text, 16);
                                         //填充滤波表格
 
-                VCI_SetReference(m_devtype, m_devind, m_canind, 1, (byte*)&filterRecord);
+                VCI_SetReference(m_devtype, m_devind, id, 1, (byte*)&filterRecord);
                 //使滤波表格生效
                 byte tm = 0;
-                if (VCI_SetReference(m_devtype, m_devind, m_canind, 2, &tm) != STATUS_OK)
+                if (VCI_SetReference(m_devtype, m_devind, id, 2, &tm) != STATUS_OK)
                 {
                     MessageBox.Show("设置滤波失败", "错误", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                     VCI_CloseDevice(m_devtype, m_devind);
-                    return;
+                    return -1;
                 }
             }
-        }
-
-        /// <summary>
-        /// 启动CAN的端口号
-        /// </summary>
-        /// <param name="id"></param>
-        public void CAN_Open(UInt32 id)
-        {
-            if (m_bOpen == 0)
-                return;
             VCI_StartCAN(m_devtype, m_devind, id);
+            return 0;
         }
 
         /// <summary>
@@ -333,6 +350,7 @@ namespace APA_DebugAssistant
         {
             VCI_CloseDevice(m_devtype, m_devind);
             m_bOpen = 0;
+            m_bConnect = 0;
         }
 
         #endregion

@@ -8,6 +8,8 @@ namespace APA_DebugAssistant
 {
     public class Vehicle
     {
+        private byte save_time;
+
         #region Beiqi imformation
         /// <summary>
         /// Vehicle Attributes
@@ -52,6 +54,9 @@ namespace APA_DebugAssistant
         private byte gear_shift;
         private bool gear_shift_enable;
         private bool gear_shift_valid;
+
+        private bool velocity_enable;
+
         //receive messege
         private bool eps_failed;
         private bool apa_epas_failed;
@@ -111,6 +116,18 @@ namespace APA_DebugAssistant
         private double beta_front;
         private double beta_rear;
         #endregion
+
+        public byte SaveTime
+        {
+            set
+            {
+                save_time = value;
+            }
+            get
+            {
+                return save_time;
+            }
+        }
 
         #region 北汽
         /// <summary>
@@ -408,6 +425,18 @@ namespace APA_DebugAssistant
             }
         }
 
+        public bool VelocityEnable
+        {
+            set
+            {
+                velocity_enable = value;
+            }
+            get
+            {
+                return velocity_enable;
+            }
+        }
+        
         /// <summary>
         /// receive imformation
         /// </summary>
@@ -883,11 +912,11 @@ namespace APA_DebugAssistant
         public Vehicle()
         {
             // 北汽车的信息
-            wheelbase_lenght = 2.65;//unit:m
+            wheelbase_lenght = 2.64;//unit:m
             front_overhang_distance = 0.952;//unit:m
-            rear_overhang_distance = 1;//unit:m
+            rear_overhang_distance = 0.905;//unit:m
             wheel_axis_width = 1.794;//unit:m
-            wheel_axis_width_half = 0.765;
+            wheel_axis_width_half = 0.797;
             wheel_edge_distance = 0.132;
 
             speed_acc = 0.5;
