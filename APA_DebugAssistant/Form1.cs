@@ -1281,6 +1281,8 @@ namespace APA_DebugAssistant
         private void ParkingControlShow()
         {
             label133.Text = ParkingStatus < 4 ? ParkingPlanningStatus[ParkingStatus]:"异常";
+            label135.Text = "转向角:" + m_Vehicle.SteeringAngleActual.ToString();
+            label136.Text = "轮速:" + (0.5 * (m_Vehicle.WheelSpeedRearLeftData + m_Vehicle.WheelSpeedRearRightData)).ToString();
         }
         #endregion
 

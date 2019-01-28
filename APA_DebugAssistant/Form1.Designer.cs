@@ -29,10 +29,10 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea8 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend8 = new System.Windows.Forms.DataVisualization.Charting.Legend();
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea7 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend7 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea22 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend22 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea21 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend21 = new System.Windows.Forms.DataVisualization.Charting.Legend();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
@@ -306,6 +306,7 @@
             this.label123 = new System.Windows.Forms.Label();
             this.button19 = new System.Windows.Forms.Button();
             this.button24 = new System.Windows.Forms.Button();
+            this.checkBox7 = new System.Windows.Forms.CheckBox();
             this.track_chart = new System.Windows.Forms.DataVisualization.Charting.Chart();
             this.tableLayoutPanel54 = new System.Windows.Forms.TableLayoutPanel();
             this.label133 = new System.Windows.Forms.Label();
@@ -315,7 +316,9 @@
             this.saveFileDialog1 = new System.Windows.Forms.SaveFileDialog();
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
             this.InjectionUltrasonicTimer = new System.Windows.Forms.Timer(this.components);
-            this.checkBox7 = new System.Windows.Forms.CheckBox();
+            this.label134 = new System.Windows.Forms.Label();
+            this.label135 = new System.Windows.Forms.Label();
+            this.label136 = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tableLayoutPanel1.SuspendLayout();
@@ -529,7 +532,7 @@
             // 
             this.comboBox1.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.comboBox1.FormattingEnabled = true;
-            this.comboBox1.Location = new System.Drawing.Point(83, 7);
+            this.comboBox1.Location = new System.Drawing.Point(83, 4);
             this.comboBox1.Name = "comboBox1";
             this.comboBox1.Size = new System.Drawing.Size(136, 32);
             this.comboBox1.TabIndex = 1;
@@ -538,7 +541,7 @@
             // 
             this.comboBox2.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.comboBox2.FormattingEnabled = true;
-            this.comboBox2.Location = new System.Drawing.Point(83, 48);
+            this.comboBox2.Location = new System.Drawing.Point(83, 45);
             this.comboBox2.Name = "comboBox2";
             this.comboBox2.Size = new System.Drawing.Size(136, 32);
             this.comboBox2.TabIndex = 1;
@@ -2100,7 +2103,7 @@
             // 
             this.comboBox4.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.comboBox4.FormattingEnabled = true;
-            this.comboBox4.Location = new System.Drawing.Point(93, 4);
+            this.comboBox4.Location = new System.Drawing.Point(93, 3);
             this.comboBox4.Name = "comboBox4";
             this.comboBox4.Size = new System.Drawing.Size(126, 28);
             this.comboBox4.TabIndex = 0;
@@ -2110,7 +2113,7 @@
             // 
             this.comboBox5.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.comboBox5.FormattingEnabled = true;
-            this.comboBox5.Location = new System.Drawing.Point(93, 38);
+            this.comboBox5.Location = new System.Drawing.Point(93, 37);
             this.comboBox5.Name = "comboBox5";
             this.comboBox5.Size = new System.Drawing.Size(126, 28);
             this.comboBox5.TabIndex = 1;
@@ -2995,11 +2998,11 @@
             // 
             // ultrasonic_chart
             // 
-            chartArea8.Name = "ChartArea1";
-            this.ultrasonic_chart.ChartAreas.Add(chartArea8);
+            chartArea22.Name = "ChartArea1";
+            this.ultrasonic_chart.ChartAreas.Add(chartArea22);
             this.ultrasonic_chart.Dock = System.Windows.Forms.DockStyle.Fill;
-            legend8.Name = "Legend1";
-            this.ultrasonic_chart.Legends.Add(legend8);
+            legend22.Name = "Legend1";
+            this.ultrasonic_chart.Legends.Add(legend22);
             this.ultrasonic_chart.Location = new System.Drawing.Point(3, 3);
             this.ultrasonic_chart.Name = "ultrasonic_chart";
             this.ultrasonic_chart.Size = new System.Drawing.Size(994, 497);
@@ -3637,7 +3640,7 @@
             // 
             // tableLayoutPanel51
             // 
-            this.tableLayoutPanel51.ColumnCount = 8;
+            this.tableLayoutPanel51.ColumnCount = 9;
             this.tableLayoutPanel51.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 90F));
             this.tableLayoutPanel51.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 120F));
             this.tableLayoutPanel51.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 120F));
@@ -3645,7 +3648,9 @@
             this.tableLayoutPanel51.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 120F));
             this.tableLayoutPanel51.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 120F));
             this.tableLayoutPanel51.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 120F));
+            this.tableLayoutPanel51.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 100F));
             this.tableLayoutPanel51.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.tableLayoutPanel51.Controls.Add(this.label133, 7, 0);
             this.tableLayoutPanel51.Controls.Add(this.button18, 0, 0);
             this.tableLayoutPanel51.Controls.Add(this.button20, 1, 0);
             this.tableLayoutPanel51.Controls.Add(this.button21, 2, 0);
@@ -3728,13 +3733,24 @@
             this.button24.Text = "停止泊车";
             this.button24.UseVisualStyleBackColor = true;
             // 
+            // checkBox7
+            // 
+            this.checkBox7.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.checkBox7.AutoSize = true;
+            this.checkBox7.Location = new System.Drawing.Point(617, 6);
+            this.checkBox7.Name = "checkBox7";
+            this.checkBox7.Size = new System.Drawing.Size(106, 22);
+            this.checkBox7.TabIndex = 5;
+            this.checkBox7.Text = "仿真功能";
+            this.checkBox7.UseVisualStyleBackColor = true;
+            // 
             // track_chart
             // 
-            chartArea7.Name = "ChartArea1";
-            this.track_chart.ChartAreas.Add(chartArea7);
+            chartArea21.Name = "ChartArea1";
+            this.track_chart.ChartAreas.Add(chartArea21);
             this.track_chart.Dock = System.Windows.Forms.DockStyle.Fill;
-            legend7.Name = "Legend1";
-            this.track_chart.Legends.Add(legend7);
+            legend21.Name = "Legend1";
+            this.track_chart.Legends.Add(legend21);
             this.track_chart.Location = new System.Drawing.Point(3, 3);
             this.track_chart.Name = "track_chart";
             this.track_chart.Size = new System.Drawing.Size(994, 507);
@@ -3744,14 +3760,15 @@
             // tableLayoutPanel54
             // 
             this.tableLayoutPanel54.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.tableLayoutPanel54.ColumnCount = 6;
-            this.tableLayoutPanel54.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 120F));
-            this.tableLayoutPanel54.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 80F));
-            this.tableLayoutPanel54.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 40F));
-            this.tableLayoutPanel54.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-            this.tableLayoutPanel54.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            this.tableLayoutPanel54.ColumnCount = 5;
+            this.tableLayoutPanel54.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 90F));
+            this.tableLayoutPanel54.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 150F));
+            this.tableLayoutPanel54.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 150F));
+            this.tableLayoutPanel54.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 100F));
             this.tableLayoutPanel54.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tableLayoutPanel54.Controls.Add(this.label133, 1, 0);
+            this.tableLayoutPanel54.Controls.Add(this.label134, 0, 0);
+            this.tableLayoutPanel54.Controls.Add(this.label135, 1, 0);
+            this.tableLayoutPanel54.Controls.Add(this.label136, 2, 0);
             this.tableLayoutPanel54.Location = new System.Drawing.Point(3, 516);
             this.tableLayoutPanel54.Name = "tableLayoutPanel54";
             this.tableLayoutPanel54.RowCount = 1;
@@ -3761,8 +3778,9 @@
             // 
             // label133
             // 
+            this.label133.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.label133.AutoSize = true;
-            this.label133.Location = new System.Drawing.Point(123, 0);
+            this.label133.Location = new System.Drawing.Point(749, 8);
             this.label133.Name = "label133";
             this.label133.Size = new System.Drawing.Size(62, 18);
             this.label133.TabIndex = 0;
@@ -3785,16 +3803,35 @@
             // 
             this.InjectionUltrasonicTimer.Tick += new System.EventHandler(this.InjectionUltrasonicTimer_Tick);
             // 
-            // checkBox7
+            // label134
             // 
-            this.checkBox7.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.checkBox7.AutoSize = true;
-            this.checkBox7.Location = new System.Drawing.Point(617, 6);
-            this.checkBox7.Name = "checkBox7";
-            this.checkBox7.Size = new System.Drawing.Size(106, 22);
-            this.checkBox7.TabIndex = 5;
-            this.checkBox7.Text = "仿真功能";
-            this.checkBox7.UseVisualStyleBackColor = true;
+            this.label134.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.label134.AutoSize = true;
+            this.label134.Location = new System.Drawing.Point(3, 3);
+            this.label134.Name = "label134";
+            this.label134.Size = new System.Drawing.Size(80, 18);
+            this.label134.TabIndex = 0;
+            this.label134.Text = "车辆状态";
+            // 
+            // label135
+            // 
+            this.label135.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.label135.AutoSize = true;
+            this.label135.Location = new System.Drawing.Point(93, 3);
+            this.label135.Name = "label135";
+            this.label135.Size = new System.Drawing.Size(62, 18);
+            this.label135.TabIndex = 1;
+            this.label135.Text = "转向角";
+            // 
+            // label136
+            // 
+            this.label136.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.label136.AutoSize = true;
+            this.label136.Location = new System.Drawing.Point(243, 3);
+            this.label136.Name = "label136";
+            this.label136.Size = new System.Drawing.Size(44, 18);
+            this.label136.TabIndex = 2;
+            this.label136.Text = "车速";
             // 
             // Form1
             // 
@@ -4212,6 +4249,9 @@
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel54;
         private System.Windows.Forms.Label label133;
         private System.Windows.Forms.CheckBox checkBox7;
+        private System.Windows.Forms.Label label134;
+        private System.Windows.Forms.Label label135;
+        private System.Windows.Forms.Label label136;
     }
 }
 
