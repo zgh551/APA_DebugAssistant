@@ -405,6 +405,8 @@ namespace APA_DebugAssistant
             if (VCI_Transmit(m_devtype, m_devind, ind, ref sendobj, 1) == 0)
             {
                 MessageBox.Show("发送失败", "错误",MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                m_bOpen = 0;
+                m_bConnect = 0;
             }
         }
         #endregion

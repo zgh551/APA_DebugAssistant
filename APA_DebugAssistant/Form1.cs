@@ -1042,6 +1042,37 @@ namespace APA_DebugAssistant
         }
         #endregion
 
+        #region 实际车辆信息
+        unsafe void VehicleSendParse(ZLGCAN.VCI_CAN_OBJ m_packet)
+        {
+            byte[] tmp_dat = new byte[2] { 0, 0 };
+            byte[] dat = new byte[8];
+            switch (m_packet.ID)
+            {
+                case 0x208:
+                    m_Vehicle.WheelSpeedDirection = (byte)((m_packet.Data[0] >> 5) & 0x03);
+                    m_Vehicle.WheelSpeedRearRightData = (UInt16)(((m_packet.Data[0] & 0x1F) << 8) | m_packet.Data[1]) * 0.015625;
+                    m_Vehicle.WheelSpeedRearLeftData  = (UInt16)(((m_packet.Data[2] & 0x1F) << 8) | m_packet.Data[3]) * 0.015625;
+
+                    m_Vehicle.VehicleSpeed = (m_Vehicle.WheelSpeedRearRightData + m_Vehicle.WheelSpeedRearLeftData) * 0.5;
+
+                    m_Vehicle.VehicleSpeed = m_Vehicle.WheelSpeedDirection == 0 ?  m_Vehicle.VehicleSpeed :
+                                             m_Vehicle.WheelSpeedDirection == 1 ? -m_Vehicle.VehicleSpeed : 0;
+                    break;
+
+                case 0x278:
+                    m_Vehicle.LatAcc = m_packet.Data[2] * 0.1 - 12.7;
+                    m_Vehicle.LonAcc = (m_packet.Data[3] << 2 | m_packet.Data[4] >> 6) * 0.03125 - 16;
+                    m_Vehicle.YawRate = ((m_packet.Data[4] & 0x3f) << 8 | m_packet.Data[5]) * 0.01 - 81.91;
+                    break;
+
+                default:
+
+                    break;
+            }
+        }
+        #endregion
+
         #region 模拟车辆发送数据编码
         /// <summary>
         /// 模拟车辆发送速度信息
@@ -1098,7 +1129,7 @@ namespace APA_DebugAssistant
             byte[] dat = new byte[8];
 
             dat[0] = 0;
-            dat[1] = (m_Vehicle.GearShift == 1)? (byte)0x0A :
+            dat[1] = (m_Vehicle.GearShift == 1) ? (byte)0x0A :
                      (m_Vehicle.GearShift == 2) ? (byte)0x09 :
                      (m_Vehicle.GearShift == 3) ? (byte)0x00 : (byte)0x01;
             dat[2] = 0;
@@ -1560,6 +1591,12 @@ namespace APA_DebugAssistant
                     {
                         VehicleParse(obj[i]);
                     }
+                    m_ZLGCAN.CAN_Receive(VehicleSendCAN, ref obj);
+                    for (int i = 0; i < obj.Length; i++)
+                    {
+
+                    }
+
                 }
                 Thread.Sleep(10);
             }

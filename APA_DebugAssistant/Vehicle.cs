@@ -98,6 +98,10 @@ namespace APA_DebugAssistant
         private bool esp_qdc_acc;
         // EMS
         private bool ems_qec_acc;
+
+        private double lat_acc;
+        private double lon_acc;
+        private double yaw_rate;
         #region vehicle body
         /*** the vehicle body information ***/
         // Lenght
@@ -116,6 +120,42 @@ namespace APA_DebugAssistant
         private double beta_front;
         private double beta_rear;
         #endregion
+
+        public double LatAcc
+        {
+            set
+            {
+                lat_acc = value;
+            }
+            get
+            {
+                return lat_acc;
+            }
+        }
+
+        public double LonAcc
+        {
+            set
+            {
+                lon_acc = value;
+            }
+            get
+            {
+                return lon_acc;
+            }
+        }
+
+        public double YawRate
+        {
+            set
+            {
+                yaw_rate = value;
+            }
+            get
+            {
+                return yaw_rate;
+            }
+        }
 
         public byte SaveTime
         {

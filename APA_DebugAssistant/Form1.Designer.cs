@@ -29,10 +29,10 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea22 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend22 = new System.Windows.Forms.DataVisualization.Charting.Legend();
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea21 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend21 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea9 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend9 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea10 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend10 = new System.Windows.Forms.DataVisualization.Charting.Legend();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
@@ -300,6 +300,7 @@
             this.TrackListBox = new System.Windows.Forms.ListBox();
             this.tableLayoutPanel49 = new System.Windows.Forms.TableLayoutPanel();
             this.tableLayoutPanel51 = new System.Windows.Forms.TableLayoutPanel();
+            this.label133 = new System.Windows.Forms.Label();
             this.button18 = new System.Windows.Forms.Button();
             this.button20 = new System.Windows.Forms.Button();
             this.button21 = new System.Windows.Forms.Button();
@@ -309,16 +310,15 @@
             this.checkBox7 = new System.Windows.Forms.CheckBox();
             this.track_chart = new System.Windows.Forms.DataVisualization.Charting.Chart();
             this.tableLayoutPanel54 = new System.Windows.Forms.TableLayoutPanel();
-            this.label133 = new System.Windows.Forms.Label();
+            this.label134 = new System.Windows.Forms.Label();
+            this.label135 = new System.Windows.Forms.Label();
+            this.label136 = new System.Windows.Forms.Label();
             this.serialPort1 = new System.IO.Ports.SerialPort(this.components);
             this.timer_show = new System.Windows.Forms.Timer(this.components);
             this.timer_ack = new System.Windows.Forms.Timer(this.components);
             this.saveFileDialog1 = new System.Windows.Forms.SaveFileDialog();
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
             this.InjectionUltrasonicTimer = new System.Windows.Forms.Timer(this.components);
-            this.label134 = new System.Windows.Forms.Label();
-            this.label135 = new System.Windows.Forms.Label();
-            this.label136 = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tableLayoutPanel1.SuspendLayout();
@@ -532,7 +532,7 @@
             // 
             this.comboBox1.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.comboBox1.FormattingEnabled = true;
-            this.comboBox1.Location = new System.Drawing.Point(83, 4);
+            this.comboBox1.Location = new System.Drawing.Point(83, 7);
             this.comboBox1.Name = "comboBox1";
             this.comboBox1.Size = new System.Drawing.Size(136, 32);
             this.comboBox1.TabIndex = 1;
@@ -541,7 +541,7 @@
             // 
             this.comboBox2.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.comboBox2.FormattingEnabled = true;
-            this.comboBox2.Location = new System.Drawing.Point(83, 45);
+            this.comboBox2.Location = new System.Drawing.Point(83, 48);
             this.comboBox2.Name = "comboBox2";
             this.comboBox2.Size = new System.Drawing.Size(136, 32);
             this.comboBox2.TabIndex = 1;
@@ -2103,7 +2103,7 @@
             // 
             this.comboBox4.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.comboBox4.FormattingEnabled = true;
-            this.comboBox4.Location = new System.Drawing.Point(93, 3);
+            this.comboBox4.Location = new System.Drawing.Point(93, 4);
             this.comboBox4.Name = "comboBox4";
             this.comboBox4.Size = new System.Drawing.Size(126, 28);
             this.comboBox4.TabIndex = 0;
@@ -2113,7 +2113,7 @@
             // 
             this.comboBox5.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.comboBox5.FormattingEnabled = true;
-            this.comboBox5.Location = new System.Drawing.Point(93, 37);
+            this.comboBox5.Location = new System.Drawing.Point(93, 38);
             this.comboBox5.Name = "comboBox5";
             this.comboBox5.Size = new System.Drawing.Size(126, 28);
             this.comboBox5.TabIndex = 1;
@@ -2998,11 +2998,11 @@
             // 
             // ultrasonic_chart
             // 
-            chartArea22.Name = "ChartArea1";
-            this.ultrasonic_chart.ChartAreas.Add(chartArea22);
+            chartArea9.Name = "ChartArea1";
+            this.ultrasonic_chart.ChartAreas.Add(chartArea9);
             this.ultrasonic_chart.Dock = System.Windows.Forms.DockStyle.Fill;
-            legend22.Name = "Legend1";
-            this.ultrasonic_chart.Legends.Add(legend22);
+            legend9.Name = "Legend1";
+            this.ultrasonic_chart.Legends.Add(legend9);
             this.ultrasonic_chart.Location = new System.Drawing.Point(3, 3);
             this.ultrasonic_chart.Name = "ultrasonic_chart";
             this.ultrasonic_chart.Size = new System.Drawing.Size(994, 497);
@@ -3666,6 +3666,16 @@
             this.tableLayoutPanel51.Size = new System.Drawing.Size(994, 34);
             this.tableLayoutPanel51.TabIndex = 1;
             // 
+            // label133
+            // 
+            this.label133.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.label133.AutoSize = true;
+            this.label133.Location = new System.Drawing.Point(749, 8);
+            this.label133.Name = "label133";
+            this.label133.Size = new System.Drawing.Size(62, 18);
+            this.label133.TabIndex = 0;
+            this.label133.Text = "status";
+            // 
             // button18
             // 
             this.button18.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -3746,11 +3756,11 @@
             // 
             // track_chart
             // 
-            chartArea21.Name = "ChartArea1";
-            this.track_chart.ChartAreas.Add(chartArea21);
+            chartArea10.Name = "ChartArea1";
+            this.track_chart.ChartAreas.Add(chartArea10);
             this.track_chart.Dock = System.Windows.Forms.DockStyle.Fill;
-            legend21.Name = "Legend1";
-            this.track_chart.Legends.Add(legend21);
+            legend10.Name = "Legend1";
+            this.track_chart.Legends.Add(legend10);
             this.track_chart.Location = new System.Drawing.Point(3, 3);
             this.track_chart.Name = "track_chart";
             this.track_chart.Size = new System.Drawing.Size(994, 507);
@@ -3775,33 +3785,6 @@
             this.tableLayoutPanel54.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tableLayoutPanel54.Size = new System.Drawing.Size(994, 24);
             this.tableLayoutPanel54.TabIndex = 2;
-            // 
-            // label133
-            // 
-            this.label133.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.label133.AutoSize = true;
-            this.label133.Location = new System.Drawing.Point(749, 8);
-            this.label133.Name = "label133";
-            this.label133.Size = new System.Drawing.Size(62, 18);
-            this.label133.TabIndex = 0;
-            this.label133.Text = "status";
-            // 
-            // timer_show
-            // 
-            this.timer_show.Interval = 50;
-            this.timer_show.Tick += new System.EventHandler(this.timer_show_Tick);
-            // 
-            // timer_ack
-            // 
-            this.timer_ack.Tick += new System.EventHandler(this.timer_ack_Tick);
-            // 
-            // openFileDialog1
-            // 
-            this.openFileDialog1.FileName = "openFileDialog1";
-            // 
-            // InjectionUltrasonicTimer
-            // 
-            this.InjectionUltrasonicTimer.Tick += new System.EventHandler(this.InjectionUltrasonicTimer_Tick);
             // 
             // label134
             // 
@@ -3832,6 +3815,23 @@
             this.label136.Size = new System.Drawing.Size(44, 18);
             this.label136.TabIndex = 2;
             this.label136.Text = "车速";
+            // 
+            // timer_show
+            // 
+            this.timer_show.Interval = 50;
+            this.timer_show.Tick += new System.EventHandler(this.timer_show_Tick);
+            // 
+            // timer_ack
+            // 
+            this.timer_ack.Tick += new System.EventHandler(this.timer_ack_Tick);
+            // 
+            // openFileDialog1
+            // 
+            this.openFileDialog1.FileName = "openFileDialog1";
+            // 
+            // InjectionUltrasonicTimer
+            // 
+            this.InjectionUltrasonicTimer.Tick += new System.EventHandler(this.InjectionUltrasonicTimer_Tick);
             // 
             // Form1
             // 
