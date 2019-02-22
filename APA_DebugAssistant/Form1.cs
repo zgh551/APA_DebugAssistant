@@ -98,6 +98,10 @@ namespace APA_DebugAssistant
         byte WorkingModuleValue = 0, FunctionStatusValue = 0;
         #endregion
 
+        #region ParkingMoudle
+        string[] ParkingModule = new string[4] { "平行", "垂直", "斜向", "保留" };
+        #endregion
+
         #region File Operation Relation Variable
         StreamWriter DataSave;
         string FilePath, localFilePath, newFileName, fileNameExt;
@@ -140,8 +144,8 @@ namespace APA_DebugAssistant
         LocationPoint VehicleInitPosition = new LocationPoint();
         LocationPoint ParkingEnterPosition = new LocationPoint();
 
-        private TurnPoint[] TurnningPointArrary = new TurnPoint[5];
-
+        private TurnPoint[] TurnningPointArrary = new TurnPoint[6];
+        private byte TurnningPointNumber = 0;
         private byte TrialCnt = 0,TrialPoint = 0;
         #endregion
 
@@ -174,7 +178,7 @@ namespace APA_DebugAssistant
         #endregion
         #endregion
         #region 函数
-        #region 车辆参数配置函数
+        #region 车辆参数配置函数(串口)
         private void VehicleParameterConfigure()
         {
             byte[] Data = new byte[32];//动态分配内存
@@ -246,7 +250,7 @@ namespace APA_DebugAssistant
         }
         #endregion
 
-        #region PID参数设置
+        #region PID参数设置(串口)
         private void PID_ParameterConfigure()
         {
             byte[] Data = new byte[32];//动态分配内存
@@ -308,7 +312,7 @@ namespace APA_DebugAssistant
         }
         #endregion
 
-        #region PID修正参数设置
+        #region PID修正参数设置(串口)
         private void PID_ReviseParameterConfigure()
         {
             byte[] Data = new byte[32];//动态分配内存
@@ -376,7 +380,7 @@ namespace APA_DebugAssistant
         }
         #endregion
 
-        #region 目标速度参数设置
+        #region 目标速度参数设置(串口)
         private void TargetSpeedParameterConfigure()
         {
             byte[] Data = new byte[32];//动态分配内存
@@ -424,7 +428,7 @@ namespace APA_DebugAssistant
         }
         #endregion
 
-        #region 系统模式设定
+        #region 系统模式设定(串口)
         private void SystemModuleConfigure()
         {
             byte[] Data = new byte[32];//动态分配内存
@@ -542,6 +546,24 @@ namespace APA_DebugAssistant
         }
         #endregion
 
+        #region 终端控制命令
+        private void TerminalControlCommandCAN(byte cmd)
+        {
+            uint id = 0x530;
+            byte len = 8;
+            byte[] dat = new byte[8];
+            dat[0] = cmd;
+            dat[1] = 0;
+            dat[2] = 0;
+            dat[3] = 0;
+            dat[4] = 0;
+            dat[5] = 0;
+            dat[6] = 0;
+            dat[7] = 0;
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+        }
+        #endregion
+
         #region 超声波检车位
         private void ParkingDetectionCommandCAN()
         {
@@ -564,12 +586,12 @@ namespace APA_DebugAssistant
         /// <summary>
         /// 规划开始控制命令
         /// </summary>
-        private void PlanningCommandCAN()
+        private void PlanningCommandCAN(byte cmd)
         {
-            uint id = 0x530;
+            uint id = 0x532;
             byte len = 8;
             byte[] dat = new byte[8];
-            dat[0] = 0x51;
+            dat[0] = cmd;
             dat[1] = 0;        
             dat[2] = 0;
             dat[3] = 0;    
@@ -979,13 +1001,14 @@ namespace APA_DebugAssistant
                 case 0x446:
                     tmp_dat[0] = m_packet.Data[0];
                     tmp_dat[1] = m_packet.Data[1];
-                    TurnningPointArrary[m_packet.Data[6]].Position.X = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    TurnningPointNumber = m_packet.Data[6];
+                    TurnningPointArrary[TurnningPointNumber].Position.X = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
                     tmp_dat[0] = m_packet.Data[2];
                     tmp_dat[1] = m_packet.Data[3];
-                    TurnningPointArrary[m_packet.Data[6]].Position.Y = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    TurnningPointArrary[TurnningPointNumber].Position.Y = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
                     tmp_dat[0] = m_packet.Data[4];
                     tmp_dat[1] = m_packet.Data[5];
-                    TurnningPointArrary[m_packet.Data[6]].SteeringAngle = BitConverter.ToInt16(tmp_dat, 0) * 0.1;
+                    TurnningPointArrary[TurnningPointNumber].SteeringAngle = BitConverter.ToInt16(tmp_dat, 0) * 0.1;
                     vehicle_update_status = 0xa6;
                     break;
 
@@ -1255,12 +1278,12 @@ namespace APA_DebugAssistant
             {
                 parking_update_status = 0;
                 ParkingDataShow.Points.Clear();
-                ParkingDataShow.Points.AddXY(-1, 0);
+                ParkingDataShow.Points.AddXY(-5, 0);
                 ParkingDataShow.Points.AddXY(0, 0);
                 ParkingDataShow.Points.AddXY(0, -ParkingWidth);
                 ParkingDataShow.Points.AddXY(ParkingLength, -ParkingWidth);
                 ParkingDataShow.Points.AddXY(ParkingLength, 0);
-                ParkingDataShow.Points.AddXY(12, 0);
+                ParkingDataShow.Points.AddXY(18, 0);
 
                 label124.Text = "X:" + VehicleInitPosition.Position.X.ToString() + "m";
                 label125.Text = "Y:" + VehicleInitPosition.Position.Y.ToString() + "m";
@@ -1298,7 +1321,7 @@ namespace APA_DebugAssistant
             {
                 vehicle_update_status = 0;
                 TurnningPointShow.Points.Clear();
-                for (int i = 0; i < 3; i++)
+                for (int i = 0; i < (TurnningPointNumber + 1); i++)
                 {
                     TurnningPointShow.Points.AddXY(TurnningPointArrary[i].Position.X,
                                                    TurnningPointArrary[i].Position.Y);
@@ -1472,7 +1495,7 @@ namespace APA_DebugAssistant
             TrackEdgeDataShow.IsVisibleInLegend = true;
             TrackEdgeDataShow.LegendText = "车辆实时姿态";
 
-            track_chart.Series.Add(VehicleModuleShow);
+            //track_chart.Series.Add(VehicleModuleShow);
             VehicleModuleShow.ChartType = SeriesChartType.FastLine;
             VehicleModuleShow.BorderWidth = 3;
             VehicleModuleShow.BorderDashStyle = ChartDashStyle.Solid;
@@ -1516,6 +1539,11 @@ namespace APA_DebugAssistant
             }
             comboBox4.SelectedIndex = 0;
 
+            for (int i = 0; i < 4; i++)
+            {
+                comboBox6.Items.Add(ParkingModule[i]);
+            }
+            comboBox6.SelectedIndex = 0;
             //长距离传感器的控件显示
             SensingControl_LRU = new Label[4][] {
                 new Label[5]{ label86, label87, label88, label89, label90 },
@@ -2107,8 +2135,6 @@ namespace APA_DebugAssistant
         {
             SystemModuleConfigure();
         }
-
-
         #endregion
 
         #region 超声波数据注入
@@ -2188,7 +2214,7 @@ namespace APA_DebugAssistant
         }
         #endregion
 
-        #region 车辆轨迹跟踪
+        #region 规划状态显示控制
         /// <summary>
         /// 图像清零
         /// </summary>
@@ -2197,20 +2223,6 @@ namespace APA_DebugAssistant
         private void button18_Click(object sender, EventArgs e)
         {
             TrackDataShow.Points.Clear();
-        }
-
-        /// <summary>
-        /// 泊车开始
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void button19_Click(object sender, EventArgs e)
-        {
-            TrackListBox.Items.Clear();
-
-            VehicleInitPositionCAN();
-            ParkingInformationCAN();
-            PlanningCommandCAN();
         }
 
         /// <summary>
@@ -2270,6 +2282,80 @@ namespace APA_DebugAssistant
             ParkingDetectionCommandCAN();
         }
         #endregion
+
+        #region 泊车事件
+        /// <summary>
+        /// 泊车开始
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button19_Click(object sender, EventArgs e)
+        {
+            TrackListBox.Items.Clear();
+
+            VehicleInitPositionCAN();
+            ParkingInformationCAN();
+            PlanningCommandCAN(0x50);
+        }
+
+        /// <summary>
+        /// 泊车结束
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button24_Click(object sender, EventArgs e)
+        {
+            PlanningCommandCAN(0x80);
+        }
+
+        /// <summary>
+        /// 泊车模式设置
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button25_Click(object sender, EventArgs e)
+        {
+            if(0 == comboBox6.SelectedIndex)
+            {
+                /// 车辆泊车图形显示
+                track_chart.ChartAreas[0].AxisX.Maximum = 12;
+                track_chart.ChartAreas[0].AxisX.Minimum = -1;
+                track_chart.ChartAreas[0].AxisY.Maximum = 5;
+                track_chart.ChartAreas[0].AxisY.Minimum = -3;
+                track_chart.ChartAreas[0].AxisX.Interval = 0.5;
+                track_chart.ChartAreas[0].AxisY.Interval = 0.5;
+                if(false == track_chart.Series.Contains(VehicleModuleShow))
+                {
+                    track_chart.Series.Add(VehicleModuleShow);
+                }
+                TerminalControlCommandCAN(0x10);
+            }
+            else if (1 == comboBox6.SelectedIndex)
+            {
+                /// 车辆泊车图形显示
+                track_chart.ChartAreas[0].AxisX.Maximum = 18;
+                track_chart.ChartAreas[0].AxisX.Minimum = -5;
+                track_chart.ChartAreas[0].AxisY.Maximum = 9;
+                track_chart.ChartAreas[0].AxisY.Minimum = -6;
+                track_chart.ChartAreas[0].AxisX.Interval = 1;
+                track_chart.ChartAreas[0].AxisY.Interval = 1;
+                if (true == track_chart.Series.Contains(VehicleModuleShow))
+                {
+                    track_chart.Series.Remove(VehicleModuleShow);
+                }
+                TerminalControlCommandCAN(0x20);
+            }
+            else if (2 == comboBox6.SelectedIndex)
+            {
+
+            }
+            else
+            {
+
+            }
+        }
+        #endregion
+
         #endregion
     }
 }
