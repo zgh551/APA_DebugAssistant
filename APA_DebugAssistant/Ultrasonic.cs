@@ -34,6 +34,15 @@ namespace APA_DebugAssistant
             public byte status;
         }
 
+        public struct Ultrasonic_Data_Packet
+        {
+            public float Distance1;
+            public float Distance2;
+            public float Level;
+            public float Width;
+            public byte status;
+        }
+
         public struct LocationPoint
         {
             public double x;
@@ -351,6 +360,45 @@ namespace APA_DebugAssistant
             }
         }
         /// <summary>
+        /// 将数据包映射到控件显示
+        /// </summary>
+        /// <param name="dat"></param>
+        /// <param name="tx"></param>
+        public void DataMapping2Control_STP318Packet(Ultrasonic_Data_Packet dat, ref Label[] tx)
+        {
+            tx[0].Text = (dat.Distance1).ToString();
+            if (dat.status == 1)
+            {
+                tx[1].Text = SensingStatus[0];
+            }
+            else if (dat.status == 2)
+            {
+                tx[1].Text = SensingStatus[1];
+            }
+            else if (dat.status == 4)
+            {
+                tx[1].Text = SensingStatus[2];
+            }
+            else if (dat.status == 8)
+            {
+                tx[1].Text = SensingStatus[3];
+            }
+            else if (dat.status == 16)
+            {
+                tx[1].Text = SensingStatus[4];
+            }
+            else if (dat.status == 0)
+            {
+                tx[1].Text = "正常";
+            }
+            else
+            {
+                tx[1].Text = "异常";
+            }
+        }
+
+
+        /// <summary>
         /// 将STP313传感器的数据映射到指定的控件中
         /// </summary>
         /// <param name="dat"></param>
@@ -389,8 +437,39 @@ namespace APA_DebugAssistant
             }
         }
 
- 
-       
+        public void DataMapping2Control_STP313Packet(Ultrasonic_Data_Packet dat, ref Label[] tx)
+        {
+            tx[0].Text = (dat.Distance1).ToString();
+            tx[1].Text = (dat.Distance2).ToString();
+            tx[2].Text = (dat.Width).ToString();
+            tx[3].Text = (dat.Level).ToString();
+
+            if (dat.status == 1)
+            {
+                tx[4].Text = SensingStatus[0];
+            }
+            else if (dat.status == 2)
+            {
+                tx[4].Text = SensingStatus[1];
+            }
+            else if (dat.status == 4)
+            {
+                tx[4].Text = SensingStatus[2];
+            }
+            else if (dat.status == 8)
+            {
+                tx[4].Text = SensingStatus[3];
+            }
+            else if (dat.status == 16)
+            {
+                tx[4].Text = SensingStatus[4];
+            }
+            else
+            {
+                tx[4].Text = "正常";
+            }
+        }
+
 
         //温度补偿
         public double TemperatureCompensation(double temp)
