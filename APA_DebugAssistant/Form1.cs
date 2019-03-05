@@ -53,6 +53,7 @@ namespace APA_DebugAssistant
 
         #region 数据显示变量
         Waveform m_Waveform = new Waveform();
+        MonitorForm m_MonitorForm = new MonitorForm();
 
         Series UltrasonicDataShow = new Series();//超声显示
 
@@ -114,6 +115,11 @@ namespace APA_DebugAssistant
         StreamWriter ParkingDataSave;
         string u_FilePath, u_localFilePath, u_newFileName, u_fileNameExt;
         bool u_DataSaveStatus = false;
+        #endregion
+
+        #region 轨迹规划数据保存相关变量
+        StreamWriter PlanningDataSave;
+        bool PlanningDataSaveStatus = false;
         #endregion
 
         #region Ultrasonic File Loading
@@ -183,6 +189,8 @@ namespace APA_DebugAssistant
         [DllImport("winmm")]
         static extern void timeEndPeriod(int t);
         uint LastTime,ErrTime;
+        uint ParkingLastTime, ParkingErrTime;
+        uint PlanLastTime, PlanErrTime;
         #endregion
         #endregion
         #region 函数
@@ -690,7 +698,7 @@ namespace APA_DebugAssistant
             dat[4] = (byte)(Convert.ToSingle(textBox26.Text) * 100);
             dat[5] = (byte)(Convert.ToSingle(textBox27.Text) * 100);
             dat[6] = (byte)(Convert.ToSingle(textBox28.Text) * 100);
-            dat[7] = 0;
+            dat[7] = Convert.ToByte(textBox30.Text) ;
             m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
         }
         #endregion
@@ -852,11 +860,11 @@ namespace APA_DebugAssistant
                 case 0x407://传感器8
                     tmp_dat[0] = m_packet.Data[0];
                     tmp_dat[1] = m_packet.Data[1];
-                    m_LIN_STP318_ReadData[m_packet.ID & 0x007].TOF = BitConverter.ToUInt16(tmp_dat, 0);
-                    m_LIN_STP318_ReadData[m_packet.ID & 0x007].status = m_packet.Data[6];
+                    //m_LIN_STP318_ReadData[m_packet.ID & 0x007].TOF = BitConverter.ToUInt16(tmp_dat, 0);
+                    //m_LIN_STP318_ReadData[m_packet.ID & 0x007].status = m_packet.Data[6];
 
-                    //m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Distance1 = BitConverter.ToUInt16(tmp_dat, 0) * 0.01f;
-                    //m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].status = m_packet.Data[6];
+                    m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Distance1 = BitConverter.ToUInt16(tmp_dat, 0) * 0.01f;
+                    m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].status = m_packet.Data[6];
                     break;
 
                 case 0x408://传感器9
@@ -865,18 +873,18 @@ namespace APA_DebugAssistant
                 case 0x40B://传感器12
                     tmp_dat[0] = m_packet.Data[0];
                     tmp_dat[1] = m_packet.Data[1];
-                    m_LIN_STP313_ReadData[m_packet.ID & 0x003].TOF1 = BitConverter.ToUInt16(tmp_dat, 0);
-                    //m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Distance1 = BitConverter.ToUInt16(tmp_dat, 0) * 0.01f;
+                    //m_LIN_STP313_ReadData[m_packet.ID & 0x003].TOF1 = BitConverter.ToUInt16(tmp_dat, 0);
+                    m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Distance1 = BitConverter.ToUInt16(tmp_dat, 0) * 0.01f;
                     tmp_dat[0] = m_packet.Data[2];
                     tmp_dat[1] = m_packet.Data[3];
-                    m_LIN_STP313_ReadData[m_packet.ID & 0x003].TOF2 = BitConverter.ToUInt16(tmp_dat, 0);
-                    //m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Distance2 = BitConverter.ToUInt16(tmp_dat, 0) * 0.01f;
-                    m_LIN_STP313_ReadData[m_packet.ID & 0x003].Level = m_packet.Data[4];
-                    m_LIN_STP313_ReadData[m_packet.ID & 0x003].Width = m_packet.Data[5];
-                    m_LIN_STP313_ReadData[m_packet.ID & 0x003].status = m_packet.Data[6];
-                    //m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Level = m_packet.Data[4] * 0.1f;
-                    //m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Width = m_packet.Data[5];
-                    //m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].status = m_packet.Data[6];
+                    //m_LIN_STP313_ReadData[m_packet.ID & 0x003].TOF2 = BitConverter.ToUInt16(tmp_dat, 0);
+                    m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Distance2 = BitConverter.ToUInt16(tmp_dat, 0) * 0.01f;
+                    //m_LIN_STP313_ReadData[m_packet.ID & 0x003].Level = m_packet.Data[4];
+                    //m_LIN_STP313_ReadData[m_packet.ID & 0x003].Width = m_packet.Data[5];
+                    //m_LIN_STP313_ReadData[m_packet.ID & 0x003].status = m_packet.Data[6];
+                    m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Level = m_packet.Data[4] * 0.1f;
+                    m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Width = m_packet.Data[5];
+                    m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].status = m_packet.Data[6];
                     break;
 
                 case 0x416:
@@ -895,7 +903,7 @@ namespace APA_DebugAssistant
 
                     tmp_dat[0] = m_packet.Data[2];
                     tmp_dat[1] = m_packet.Data[3];
-                    m_Vehicle.SteeringAngleActual = BitConverter.ToInt16(tmp_dat,0) * 0.1;
+                    m_Vehicle.SteeringAngleActual = BitConverter.ToInt16(tmp_dat, 0) * 0.1;
                     tmp_dat[0] = m_packet.Data[4];
                     tmp_dat[1] = m_packet.Data[5];
                     m_Vehicle.SteeringAngleSpeed = (UInt16)(BitConverter.ToUInt16(tmp_dat, 0) * 0.01);
@@ -913,17 +921,20 @@ namespace APA_DebugAssistant
                     m_Vehicle.GearShiftEnable          = Convert.ToBoolean((m_packet.Data[0] >> 6) & 0x01);
 
                     m_Vehicle.GearShift = m_packet.Data[1];
-                    if(4 == m_Vehicle.GearShift)
+                    if (checkBox7.Checked)
                     {
-                        m_Vehicle.WheelSpeedRearRightDirection = 0;
-                    }
-                    else if (2 == m_Vehicle.GearShift)
-                    {
-                        m_Vehicle.WheelSpeedRearRightDirection = 1;
-                    }
-                    else
-                    {
-                        m_Vehicle.WheelSpeedRearRightDirection = 2;
+                        if (4 == m_Vehicle.GearShift)
+                        {
+                            m_Vehicle.WheelSpeedRearRightDirection = 0;
+                        }
+                        else if (2 == m_Vehicle.GearShift)
+                        {
+                            m_Vehicle.WheelSpeedRearRightDirection = 1;
+                        }
+                        else
+                        {
+                            m_Vehicle.WheelSpeedRearRightDirection = 2;
+                        }
                     }
                     tmp_dat[0] = m_packet.Data[2];
                     tmp_dat[1] = m_packet.Data[3];
@@ -933,16 +944,23 @@ namespace APA_DebugAssistant
                     m_Vehicle.TargetDecelerationAEB = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
                     tmp_dat[0] = m_packet.Data[6];
                     tmp_dat[1] = m_packet.Data[7];
-                    if(m_Vehicle.VelocityEnable)
+                    m_Vehicle.TargetVehicleSpeed = BitConverter.ToUInt16(tmp_dat, 0) * 0.01;
+                    if (checkBox7.Checked)
                     {
-                        m_Vehicle.WheelSpeedRearLeftData = BitConverter.ToUInt16(tmp_dat, 0) * 0.01;
-                        m_Vehicle.WheelSpeedRearRightData = m_Vehicle.WheelSpeedRearLeftData;
-                    }
-                    else
-                    {
-                        m_Vehicle.WheelSpeedRearLeftData = 0;
-                        m_Vehicle.WheelSpeedRearRightData = 0;
-                        m_Vehicle.WheelSpeedRearRightDirection = 2;
+                        if (0 == m_Vehicle.TargetVehicleSpeed)
+                        {
+                            m_Vehicle.WheelSpeedRearRightDirection = 2;
+                        }
+                        if (m_Vehicle.VelocityEnable)
+                        {
+                            m_Vehicle.WheelSpeedRearLeftData  = m_Vehicle.TargetVehicleSpeed;
+                            m_Vehicle.WheelSpeedRearRightData = m_Vehicle.TargetVehicleSpeed;
+                        }
+                        else
+                        {
+                            m_Vehicle.WheelSpeedRearLeftData  = 0;
+                            m_Vehicle.WheelSpeedRearRightData = 0;
+                        }
                     }
                     break;
 
@@ -1086,7 +1104,8 @@ namespace APA_DebugAssistant
                 case 0x6fe:
                     tmp_dat[1] = m_packet.Data[6];
                     tmp_dat[0] = m_packet.Data[7];
-                    m_Vehicle.SteeringAngle = BitConverter.ToInt16(tmp_dat, 0) * 0.1;
+                    m_Vehicle.SteeringAngleTarget = BitConverter.ToInt16(tmp_dat, 0) * 0.1;
+                    //m_Vehicle.SteeringAngleActual = m_Vehicle.SteeringAngleTarget;
                     break;
 
                 case 0x6ff:
@@ -1126,6 +1145,11 @@ namespace APA_DebugAssistant
                     m_Vehicle.LatAcc = m_packet.Data[2] * 0.1 - 12.7;
                     m_Vehicle.LonAcc = (m_packet.Data[3] << 2 | m_packet.Data[4] >> 6) * 0.03125 - 16;
                     m_Vehicle.YawRate = ((m_packet.Data[4] & 0x3f) << 8 | m_packet.Data[5]) * 0.01 - 81.91;
+                    break;
+
+                case 0x180://SAS
+                    //m_Vehicle.SteeringAngleActual = (double)(((Int16)((dat[0] << 8) | dat[1])) * 0.1);
+                    m_Vehicle.SteeringAngleSpeed = (UInt16)(dat[2] * 4);
                     break;
 
                 default:
@@ -1168,7 +1192,7 @@ namespace APA_DebugAssistant
             byte len = 8;
             byte[] dat = new byte[8];
             Int16 temp_steering;
-            temp_steering = (Int16)(m_Vehicle.SteeringAngle * 10);
+            temp_steering = (Int16)(m_Vehicle.SteeringAngleTarget * 10);
 
             dat[0] = (byte)(temp_steering >> 8);
             dat[1] = (byte)(temp_steering & 0xff);
@@ -1273,17 +1297,17 @@ namespace APA_DebugAssistant
         {
             for(int i =0;i<8;i++ )
             {
-                m_Ultrasonic.DataMapping2Control_STP318(m_LIN_STP318_ReadData[i], ref SensingControl_SRU[i]);
-                //m_Ultrasonic.DataMapping2Control_STP318Packet(m_Ultrasonic_Data_Packet[i], ref SensingControl_SRU[i]);
+                //m_Ultrasonic.DataMapping2Control_STP318(m_LIN_STP318_ReadData[i], ref SensingControl_SRU[i]);
+                m_Ultrasonic.DataMapping2Control_STP318Packet(m_Ultrasonic_Data_Packet[i], ref SensingControl_SRU[i]);
             }
-            for (int i = 0; i < 4; i++)
-            {
-                m_Ultrasonic.DataMapping2Control_STP313(m_LIN_STP313_ReadData[i], ref SensingControl_LRU[i]);
-            }
-            //for (int i = 8; i < 12; i++)
+            //for (int i = 0; i < 4; i++)
             //{
-            //    m_Ultrasonic.DataMapping2Control_STP313Packet(m_Ultrasonic_Data_Packet[i], ref SensingControl_LRU[i - 8]);
+            //    m_Ultrasonic.DataMapping2Control_STP313(m_LIN_STP313_ReadData[i], ref SensingControl_LRU[i]);
             //}
+            for (int i = 8; i < 12; i++)
+            {
+                m_Ultrasonic.DataMapping2Control_STP313Packet(m_Ultrasonic_Data_Packet[i], ref SensingControl_LRU[i - 8]);
+            }
         }
 
         private void UltrasonicImformationFormShow()
@@ -1391,8 +1415,8 @@ namespace APA_DebugAssistant
         private void ParkingControlShow()
         {
             label133.Text = ParkingStatus < 4 ? ParkingPlanningStatus[ParkingStatus]:"异常";
-            label135.Text = "转向角:" + m_Vehicle.SteeringAngleActual.ToString();
-            label136.Text = "轮速:" + (0.5 * (m_Vehicle.WheelSpeedRearLeftData + m_Vehicle.WheelSpeedRearRightData)).ToString();
+            label135.Text = "转向角:" + m_Vehicle.SteeringAngleActual.ToString("F1");
+            label136.Text = "轮速:" + (0.5 * (m_Vehicle.WheelSpeedRearLeftData + m_Vehicle.WheelSpeedRearRightData)).ToString("F2");
         }
         #endregion
 
@@ -1498,7 +1522,7 @@ namespace APA_DebugAssistant
         /// </summary>
         private void ParkingDetectionPacketDataLog()
         {
-            ErrTime = timeGetTime() - LastTime;
+            ParkingErrTime = timeGetTime() - ParkingLastTime;
             //数据保存
             if (u_DataSaveStatus)
             {
@@ -1553,7 +1577,7 @@ namespace APA_DebugAssistant
                                 m_Ultrasonic_Data_Packet[11].status
                 );
             }
-            LastTime = timeGetTime();
+            ParkingLastTime = timeGetTime();
         }
         /// <summary>
         /// 库位信息保存
@@ -1575,6 +1599,125 @@ namespace APA_DebugAssistant
                 );
             }
             
+        }
+
+        private void PlanningInfDataLog()
+        {
+            PlanErrTime = timeGetTime() - PlanLastTime;
+            //数据保存
+            if (PlanningDataSaveStatus)
+            {
+                PlanningDataSave.Write(
+                                "{0:D} " +
+                                "{1:R} {2:R} {3:D} {4:R} " +
+                                "{5:R} {6:R} " +
+                                "{7:R} {8:R} " +
+                                "{9:R} {10:R} {11:R}" +
+                                "{12:R} {13:R} {14:R}" +
+                                "\r\n",
+                                PlanErrTime,
+                                /// Steering Angle 
+                                m_Vehicle.SteeringAngleTarget,
+                                m_Vehicle.SteeringAngleActual,
+                                m_Vehicle.SteeringAngleSpeed,
+                                m_Vehicle.SteeringTorque,
+                                /// Vehicle Speed
+                                m_Vehicle.TargetVehicleSpeed,
+                                m_Vehicle.VehicleSpeed,
+                                /// WheelSpeed
+                                m_Vehicle.WheelSpeedRearLeftData,
+                                m_Vehicle.WheelSpeedRearRightData,
+                                /// 跟踪位置信息
+                                TrackPoint.Position.X,
+                                TrackPoint.Position.Y,
+                                TrackPoint.Yaw,
+                                /// 车辆姿态信息
+                                m_Vehicle.LatAcc,
+                                m_Vehicle.LonAcc,
+                                m_Vehicle.YawRate
+                );
+            }
+            PlanLastTime = timeGetTime();
+        }
+
+        /// <summary>
+        /// 数据包保存
+        /// </summary>
+        private void UltrasonicPacketDataLog()
+        {
+            ParkingErrTime = timeGetTime() - ParkingLastTime;
+            //数据保存
+            if (PlanningDataSaveStatus)
+            {
+                ULtrasonicDataSave.Write(
+                                "{0:D} " +
+                                "{1:R16} {2:D} {3:R16} {4:D} " +
+                                "{5:R16} {6:D} {7:R16} {8:D} " +
+                                "{9:R16}  {10:D} {11:R16} {12:D} " +
+                                "{13:R16} {14:D} {15:R16} {16:D} " +
+
+                                "{17:R16} {18:R16} {19:R16} {20:R16} {21:D} " +
+                                "{22:R16} {23:R16} {24:R16} {25:R16} {26:D} " +
+                                "{27:R16} {28:R16} {29:R16} {30:R16} {31:D} " +
+                                "{32:R16} {33:R16} {34:R16} {35:R16} {36:D} " +
+
+                                "{37:R16} {38:R16} {39:R16}" +
+
+                                "{40:R16} {41:R16} {42:R16} {43:R16} " +                               
+                                "\r\n",
+                                ErrTime,
+                                // Ultrasonic
+                                m_Ultrasonic_Data_Packet[0].Distance1,
+                                m_Ultrasonic_Data_Packet[0].status,
+                                m_Ultrasonic_Data_Packet[1].Distance1,
+                                m_Ultrasonic_Data_Packet[1].status,
+                                m_Ultrasonic_Data_Packet[2].Distance1,
+                                m_Ultrasonic_Data_Packet[2].status,
+                                m_Ultrasonic_Data_Packet[3].Distance1,
+                                m_Ultrasonic_Data_Packet[3].status,
+                                m_Ultrasonic_Data_Packet[4].Distance1,
+                                m_Ultrasonic_Data_Packet[4].status,
+                                m_Ultrasonic_Data_Packet[5].Distance1,
+                                m_Ultrasonic_Data_Packet[5].status,
+                                m_Ultrasonic_Data_Packet[6].Distance1,
+                                m_Ultrasonic_Data_Packet[6].status,
+                                m_Ultrasonic_Data_Packet[7].Distance1,
+                                m_Ultrasonic_Data_Packet[7].status,
+
+                                m_Ultrasonic_Data_Packet[8].Distance1,
+                                m_Ultrasonic_Data_Packet[8].Distance2,
+                                m_Ultrasonic_Data_Packet[8].Level,
+                                m_Ultrasonic_Data_Packet[8].Width,
+                                m_Ultrasonic_Data_Packet[8].status,
+                                m_Ultrasonic_Data_Packet[9].Distance1,
+                                m_Ultrasonic_Data_Packet[9].Distance2,
+                                m_Ultrasonic_Data_Packet[9].Level,
+                                m_Ultrasonic_Data_Packet[9].Width,
+                                m_Ultrasonic_Data_Packet[9].status,
+                                m_Ultrasonic_Data_Packet[10].Distance1,
+                                m_Ultrasonic_Data_Packet[10].Distance2,
+                                m_Ultrasonic_Data_Packet[10].Level,
+                                m_Ultrasonic_Data_Packet[10].Width,
+                                m_Ultrasonic_Data_Packet[10].status,
+                                m_Ultrasonic_Data_Packet[11].Distance1,
+                                m_Ultrasonic_Data_Packet[11].Distance2,
+                                m_Ultrasonic_Data_Packet[11].Level,
+                                m_Ultrasonic_Data_Packet[11].Width,
+                                m_Ultrasonic_Data_Packet[11].status,
+
+                                /// 跟踪位置信息
+                                TrackPoint.Position.X,
+                                TrackPoint.Position.Y,
+                                TrackPoint.Yaw,
+                                /// Steering Angle 
+                                m_Vehicle.SteeringAngleActual,
+                                m_Vehicle.VehicleSpeed,
+                                /// WheelSpeed
+                                m_Vehicle.WheelSpeedRearLeftData,
+                                m_Vehicle.WheelSpeedRearRightData
+                );
+            }
+            ParkingLastTime = timeGetTime();
         }
         #endregion
 
@@ -1768,7 +1911,7 @@ namespace APA_DebugAssistant
                     m_ZLGCAN.CAN_Receive(VehicleSendCAN, ref obj);
                     for (int i = 0; i < obj.Length; i++)
                     {
-
+                        VehicleSendParse(obj[i]);
                     }
 
                 }
@@ -1982,8 +2125,6 @@ namespace APA_DebugAssistant
                 m_SerialCom.Listening = false;//我用完了，ui可以关闭串口了。     
             }// end try    
         }
-
-
         #endregion
 
         #region CAN 操作相关事件
@@ -2058,7 +2199,16 @@ namespace APA_DebugAssistant
                 vehicle_update_status = 0;
                 VehicleShow(ParkingEnterPosition);
             }
+            if (m_MonitorForm.Visible)
+            {
+                m_MonitorForm.SteeringAnglePointAdd(m_Vehicle.SteeringAngleTarget, m_Vehicle.SteeringAngleActual);
+            }
+            if (m_Waveform.Visible)
+            {
+                m_Waveform.VehicleSpeedPointAdd(m_Vehicle.TargetVehicleSpeed, m_Vehicle.VehicleSpeed);
+            }
             ParkingDetectionDataLog();
+            PlanningInfDataLog();
         }
 
         /// <summary>
@@ -2282,7 +2432,7 @@ namespace APA_DebugAssistant
             if (!u_DataSaveStatus)
             {
                 //给文件名前加上时间
-                u_newFileName = DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + textBox21.Text + "_" + u_fileNameExt;
+                u_newFileName = DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + textBox21.Text + "_Ultrasonic_" + u_fileNameExt;
                 ULtrasonicDataSave = new StreamWriter(u_FilePath + "\\" + u_newFileName, true, Encoding.ASCII);
                 u_newFileName = DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + textBox21.Text + "_ParkingInf_" + u_fileNameExt;
                 ParkingDataSave    = new StreamWriter(u_FilePath + "\\" + u_newFileName, true, Encoding.ASCII);
@@ -2321,8 +2471,6 @@ namespace APA_DebugAssistant
                 MessageBox.Show("模式索引越界！");
             }
         }
-
-
 
         /// <summary>
         /// Configure the system Working State and function status
@@ -2387,6 +2535,8 @@ namespace APA_DebugAssistant
             }
         }
 
+
+
         /// <summary>
         /// 超声数据注入继续
         /// </summary>
@@ -2396,6 +2546,8 @@ namespace APA_DebugAssistant
         {
             InjectionUltrasonicTimer.Enabled = true;
         }
+
+
 
         /// <summary>
         /// 超声波数据注入暂停
@@ -2411,6 +2563,8 @@ namespace APA_DebugAssistant
         {
             UltrasonicDataShow.Points.Clear();
         }
+
+
         #endregion
 
         #region 规划状态显示控制
@@ -2471,6 +2625,44 @@ namespace APA_DebugAssistant
             else
             {
                 VehicleShow(RearTrial[TrialPoint]);
+            }
+        }
+
+        /// <summary>
+        /// 转向角显示窗口开启或关闭事件
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button30_Click(object sender, EventArgs e)
+        {
+            if (m_MonitorForm.Visible)
+            {
+                m_MonitorForm.Hide();
+                button30.Text = "监控数据开启";
+            }
+            else
+            {
+                m_MonitorForm.Show();
+                button30.Text = "监控数据关闭";
+            }
+        }
+
+        /// <summary>
+        /// 速度显示开启或关闭
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button31_Click(object sender, EventArgs e)
+        {
+            if (m_Waveform.Visible)
+            {
+                m_Waveform.Hide();
+                button31.Text = "速度显示开启";
+            }
+            else
+            {
+                m_Waveform.Show();
+                button31.Text = "速度显示关闭";
             }
         }
         #endregion
@@ -2558,6 +2750,70 @@ namespace APA_DebugAssistant
             {
 
             }
+        }
+        #endregion
+
+        #region 参数配置设置
+        /// <summary>
+        /// 嵌入式全局参数配置
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button29_Click(object sender, EventArgs e)
+        {
+            ParameterConfigureCAN();
+        }
+        #endregion
+
+        #region 轨迹规划相关事件
+        /// <summary>
+        /// 轨迹规划相关数据保存
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button32_Click(object sender, EventArgs e)
+        {
+            saveFileDialog1.Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*";
+            saveFileDialog1.InitialDirectory = "D:\\APA\\NXP_DataSet";
+            saveFileDialog1.Title = "请选择要保存的文件路径";
+            saveFileDialog1.FilterIndex = 2;
+            saveFileDialog1.DefaultExt = "txt";
+            saveFileDialog1.FileName = "Data.txt";
+            saveFileDialog1.RestoreDirectory = true;
+            saveFileDialog1.AddExtension = true;
+            DialogResult dr = saveFileDialog1.ShowDialog();
+            if (dr == DialogResult.OK && saveFileDialog1.FileName.Length > 0)
+            {
+                //获得文件路径
+                localFilePath = saveFileDialog1.FileName.ToString();
+                //获取文件路径，不带文件名
+                FilePath = localFilePath.Substring(0, localFilePath.LastIndexOf("\\"));
+                //获取文件名，不带路径
+                fileNameExt = localFilePath.Substring(localFilePath.LastIndexOf("\\") + 1);
+            }
+        }
+
+        /// <summary>
+        /// 轨迹规划数据保存按钮
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button33_Click(object sender, EventArgs e)
+        {
+            if (!PlanningDataSaveStatus)
+            {
+                //给文件名前加上时间
+                newFileName = DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + textBox29.Text + "_Planning_" + fileNameExt;
+                PlanningDataSave = new StreamWriter(FilePath + "\\" + newFileName, true, Encoding.ASCII);
+                PlanningDataSaveStatus = true;
+            }
+            else
+            {
+                PlanningDataSave.Close();
+                PlanningDataSaveStatus = false;
+            }
+            button33.Text = PlanningDataSaveStatus ? "取消保存" : "开始保存";
+            button33.BackColor = PlanningDataSaveStatus ? Color.Green : Color.Red;
         }
         #endregion
 

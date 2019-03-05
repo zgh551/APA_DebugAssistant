@@ -48,7 +48,7 @@ namespace APA_DebugAssistant
         private double torque;
         private bool torque_enable;
 
-        private double steering_angle;
+        private double steering_angle_target;
         private byte steering_angle_active;
 
         private byte gear_shift;
@@ -82,6 +82,7 @@ namespace APA_DebugAssistant
         // vehicle speed
         private byte vehicle_speed_valid;
         private double vehicle_speed;
+        private double target_vehicle_speed;
         // wheel pulse
         private byte wheel_speed_direction;
         private byte wheel_speed_rear_right_pulse;
@@ -408,17 +409,18 @@ namespace APA_DebugAssistant
             }
         }
 
-        public double SteeringAngle
+        public double SteeringAngleTarget
         {
             set
             {
-                steering_angle = value;
+                steering_angle_target = value;
             }
             get
             {
-                return steering_angle;
+                return steering_angle_target;
             }
         }
+
         public byte SteeringAngleActive
         {
             set
@@ -704,6 +706,18 @@ namespace APA_DebugAssistant
             }
         }
 
+        public double TargetVehicleSpeed
+        {
+            set
+            {
+                target_vehicle_speed = value;
+            }
+            get
+            {
+                return target_vehicle_speed;
+            }
+        }
+        
         /// <summary>
         /// wheel speed pulse
         /// </summary>
@@ -1075,19 +1089,19 @@ namespace APA_DebugAssistant
             double left_target_angle = m_vehicle.SteeringWheelTargetAngle - da;
             double right_target_angle = m_vehicle.SteeringWheelTargetAngle + da;
 
-            if(m_vehicle.steering_angle < left_target_angle)
+            if(m_vehicle.steering_angle_actual < left_target_angle)
             {
-                m_vehicle.steering_angle += da;
-                Console.WriteLine("steering_angle:" + m_vehicle.steering_angle.ToString()+"\r");
+                m_vehicle.steering_angle_actual += da;
+                Console.WriteLine("steering_angle:" + m_vehicle.steering_angle_actual.ToString()+"\r");
             }
-            else if(m_vehicle.steering_angle > right_target_angle)
+            else if(m_vehicle.steering_angle_actual > right_target_angle)
             {
-                m_vehicle.steering_angle -= da;
-                Console.WriteLine("steering_angle:" + m_vehicle.steering_angle.ToString() + "\r");
+                m_vehicle.steering_angle_actual -= da;
+                Console.WriteLine("steering_angle:" + m_vehicle.steering_angle_actual.ToString() + "\r");
             }
             else
             {
-                m_vehicle.steering_angle = m_vehicle.SteeringWheelTargetAngle;
+                m_vehicle.steering_angle_actual = m_vehicle.SteeringWheelTargetAngle;
             }
         }
     }
