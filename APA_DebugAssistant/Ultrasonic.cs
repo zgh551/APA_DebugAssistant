@@ -52,9 +52,10 @@ namespace APA_DebugAssistant
 
         public enum UltrasonicStatus
         {
-            Normal,
+            Normal = 0,
             BlindZone,
-            OverDetection
+            OverDetection,
+            Noise
         }
         public struct UltrasonicAxis
         {
@@ -329,44 +330,7 @@ namespace APA_DebugAssistant
         /// 
         public void DataMapping2Control_STP318(LIN_STP318_ReadData dat, ref Label[] tx)
         {
-            tx[0].Text = (dat.TOF / 58.0).ToString();
-            if (dat.status == 1)
-            {
-                tx[1].Text = SensingStatus[0];
-            }
-            else if (dat.status == 2)
-            {
-                tx[1].Text = SensingStatus[1];
-            }
-            else if (dat.status == 4)
-            {
-                tx[1].Text = SensingStatus[2];
-            }
-            else if (dat.status == 8)
-            {
-                tx[1].Text = SensingStatus[3];
-            }
-            else if (dat.status == 16)
-            {
-                tx[1].Text = SensingStatus[4];
-            }
-            else if (dat.status == 0)
-            {
-                tx[1].Text = "正常";
-            }
-            else
-            {
-                tx[1].Text = "异常";
-            }
-        }
-        /// <summary>
-        /// 将数据包映射到控件显示
-        /// </summary>
-        /// <param name="dat"></param>
-        /// <param name="tx"></param>
-        public void DataMapping2Control_STP318Packet(Ultrasonic_Data_Packet dat, ref Label[] tx)
-        {
-            tx[0].Text = (dat.Distance1).ToString();
+            tx[0].Text = (dat.TOF / 58.0).ToString("F2");
             if (dat.status == 1)
             {
                 tx[1].Text = SensingStatus[0];
@@ -397,6 +361,52 @@ namespace APA_DebugAssistant
             }
         }
 
+        public void DataMapping2Control_STP318(LIN_STP318_ReadData dat, ref Label tx)
+        {
+            tx.Text = (dat.TOF / 58.0).ToString("F2");
+        }
+        /// <summary>
+        /// 将数据包映射到控件显示
+        /// </summary>
+        /// <param name="dat"></param>
+        /// <param name="tx"></param>
+        public void DataMapping2Control_STP318Packet(Ultrasonic_Data_Packet dat, ref Label[] tx)
+        {
+            tx[0].Text = (dat.Distance1).ToString("F2");
+            if (dat.status == 1)
+            {
+                tx[1].Text = SensingStatus[0];
+            }
+            else if (dat.status == 2)
+            {
+                tx[1].Text = SensingStatus[1];
+            }
+            else if (dat.status == 4)
+            {
+                tx[1].Text = SensingStatus[2];
+            }
+            else if (dat.status == 8)
+            {
+                tx[1].Text = SensingStatus[3];
+            }
+            else if (dat.status == 16)
+            {
+                tx[1].Text = SensingStatus[4];
+            }
+            else if (dat.status == 0)
+            {
+                tx[1].Text = "正常";
+            }
+            else
+            {
+                tx[1].Text = "异常";
+            }
+        }
+
+        public void DataMapping2Control_STP318Packet(Ultrasonic_Data_Packet dat, ref Label tx)
+        {
+            tx.Text = (dat.Distance1).ToString("F2");
+        }
 
         /// <summary>
         /// 将STP313传感器的数据映射到指定的控件中
@@ -406,10 +416,10 @@ namespace APA_DebugAssistant
         /// <param name="lb"></param>
         public void DataMapping2Control_STP313(LIN_STP313_ReadData dat, ref Label[] tx)
         {
-            tx[0].Text = ((dat.TOF1) / 58.0).ToString();
-            tx[1].Text = ((dat.TOF2) / 58.0).ToString();
-            tx[2].Text = (dat.Width * 16).ToString();
-            tx[3].Text = (dat.Level * 3.3 / 255).ToString();
+            tx[0].Text = ((dat.TOF1) / 58.0).ToString("F2");
+            tx[1].Text = ((dat.TOF2) / 58.0).ToString("F2");
+            tx[2].Text = (dat.Width * 16).ToString("F2");
+            tx[3].Text = (dat.Level * 3.3 / 255).ToString("F2");
 
             if (dat.status == 1)
             {
@@ -439,10 +449,10 @@ namespace APA_DebugAssistant
 
         public void DataMapping2Control_STP313Packet(Ultrasonic_Data_Packet dat, ref Label[] tx)
         {
-            tx[0].Text = (dat.Distance1).ToString();
-            tx[1].Text = (dat.Distance2).ToString();
-            tx[2].Text = (dat.Width).ToString();
-            tx[3].Text = (dat.Level).ToString();
+            tx[0].Text = (dat.Distance1).ToString("F2");
+            tx[1].Text = (dat.Distance2).ToString("F2");
+            tx[2].Text = (dat.Width).ToString("F2");
+            tx[3].Text = (dat.Level).ToString("F2");
 
             if (dat.status == 1)
             {

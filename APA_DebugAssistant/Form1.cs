@@ -40,9 +40,14 @@ namespace APA_DebugAssistant
         string[] VehicleDirection = new string[4] { "前进","后退","停车","无效"};
         string[] SteeringAngleActiveStatus = new string[4] { "无请求", "请求控制", "控制激活", "无效" };
 
-        const double FRONT_EDGE_TO_CENTER = 3.54;
-        const double REAR_EDGE_TO_CENTER  = 0.905;
-        const double LEFT_EDGE_TO_CENTER  = 0.9275;
+        //const double FRONT_EDGE_TO_CENTER = 3.54;
+        //const double REAR_EDGE_TO_CENTER  = 0.905;
+        //const double LEFT_EDGE_TO_CENTER  = 0.9275;
+        //const double RIGHT_EDGE_TO_CENTER = 0.9275;
+
+        const double FRONT_EDGE_TO_CENTER = 3.886;
+        const double REAR_EDGE_TO_CENTER = 1.1;
+        const double LEFT_EDGE_TO_CENTER = 0.9275;
         const double RIGHT_EDGE_TO_CENTER = 0.9275;
 
         private Polar FrontLeftDiagonal;
@@ -52,18 +57,27 @@ namespace APA_DebugAssistant
         #endregion
 
         #region 数据显示变量
+        Color[] u_color = new Color[4];
+
         Waveform m_Waveform = new Waveform();
         MonitorForm m_MonitorForm = new MonitorForm();
 
         Series UltrasonicDataShow = new Series();//超声显示
+        Series UltrasonicVehicle  = new Series(); //超声车身
 
-        Series TrackDataShow = new Series();//跟踪数据显示
+        Series UltrasonicBodyDirectLocation     = new Series();//超声障碍物直接定位(车体坐标系)
+        Series UltrasonicBodyTriangleLocation   = new Series();//超声障碍物三角定位(车体坐标系)
+        Series UltrasonicGroundDirectLocation   = new Series();//超声障碍物直接定位(地面坐标系)
+        Series UltrasonicGroundTriangleLocation = new Series();//超声障碍物三角定位(地面坐标系)
+
+        Series TrackDataShow     = new Series();//跟踪数据显示
         Series TrackEdgeDataShow = new Series();//跟踪车辆轮廓数据显示
 
-        Series ParkingDataShow = new Series();//车位数据显示
+        Series ParkingDataShow   = new Series();//车位数据显示
         Series VehicleModuleShow = new Series();//车辆模型显示
 
         Series TurnningPointShow = new Series();//车辆转向角显示
+        
 
         byte track_update_status;
         byte parking_update_status;
@@ -73,14 +87,27 @@ namespace APA_DebugAssistant
         #region 超声参数
         public LIN_STP313_ReadData[] m_LIN_STP313_ReadData = new LIN_STP313_ReadData[4];
         public LIN_STP318_ReadData[] m_LIN_STP318_ReadData = new LIN_STP318_ReadData[8];
+        public LIN_STP318_ReadData[] m_LIN_STP318_Location_ReadData = new LIN_STP318_ReadData[12];
 
         public Ultrasonic_Data_Packet[] m_Ultrasonic_Data_Packet = new Ultrasonic_Data_Packet[12];
+        public Ultrasonic_Data_Packet[] m_Ultrasonic_Location_Data_Packet = new Ultrasonic_Data_Packet[12];
+
+        public UltrasonicAxis[] m_BodyDirectLocation = new UltrasonicAxis[12];
+        public UltrasonicAxis[] m_BodyTriangleLocation = new UltrasonicAxis[12];
+
+        public UltrasonicAxis[] m_GroundDirectLocation   = new UltrasonicAxis[12];
+        public UltrasonicAxis[] m_GroundTriangleLocation = new UltrasonicAxis[12];
+        
         //LRU STP313 传感器 控件显示
         Label[][] SensingControl_LRU = new Label[4][];
         //SRU STP318 传感器 控件显示
         Label[][] SensingControl_SRU = new Label[8][];
 
+        Label[][] SensingLocation_SRU = new Label[4][];
+
         Ultrasonic m_Ultrasonic = new Ultrasonic();
+
+        const byte UltrasonicDataType = 2;
         #endregion
 
         #region PID参数
@@ -119,6 +146,7 @@ namespace APA_DebugAssistant
 
         #region 轨迹规划数据保存相关变量
         StreamWriter PlanningDataSave;
+        StreamWriter LocationMapDataSave;
         bool PlanningDataSaveStatus = false;
         #endregion
 
@@ -152,6 +180,7 @@ namespace APA_DebugAssistant
         }
 
         LocationPoint TrackPoint;
+        double ActualTurnRadius;
         Vector2d[] VehicleEdgePoint = new Vector2d[4];
         private LocationPoint[] FrontTrial = new LocationPoint[10];
         private LocationPoint[] RearTrial = new LocationPoint[10];
@@ -190,8 +219,14 @@ namespace APA_DebugAssistant
         static extern void timeEndPeriod(int t);
         uint LastTime,ErrTime;
         uint ParkingLastTime, ParkingErrTime;
+        uint UltrasonicLastTime, UltrasonicErrTime;
         uint PlanLastTime, PlanErrTime;
+        uint LocationMapLastTime, LocationMapErrTime;
         #endregion
+
+
+        //System.Drawing.Imaging.ColorPalette GreyColorPalette = null;
+        System.Drawing.Bitmap newBitmap = null;
         #endregion
         #region 函数
         #region 车辆参数配置函数(串口)
@@ -832,6 +867,74 @@ namespace APA_DebugAssistant
         }
         #endregion
 
+        #region 博瑞对接接口
+        private void VehicleControlCAN_BR1()
+        {
+            uint id = 0x411;
+            byte len = 8;
+            byte[] dat = new byte[8];
+            byte[] Data_Temp = new byte[8];//动态分配内存
+
+            Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox4.Text) * 10));//转向角
+            dat[0] = Data_Temp[1];
+            dat[1] = Data_Temp[0];
+            Data_Temp = BitConverter.GetBytes((UInt16)Convert.ToSingle(textBox31.Text));//刹停距离
+            dat[2] = Data_Temp[1];
+            dat[3] = Data_Temp[0];
+  
+            dat[4] = (Byte)(Convert.ToSingle(textBox32.Text) * 10);//刹停速度
+            dat[5] = Convert.ToByte(comboBox3.SelectedIndex);      // 挡位
+
+            dat[6] = (Byte)(Convert.ToByte(checkBox4.Checked) << 6);
+            dat[7] = 0;
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+        }
+
+        private void VehicleControlCAN_BR2()
+        {
+            uint id = 0x412;
+            byte len = 8;
+            byte[] dat = new byte[8];
+            byte[] Data_Temp = new byte[8];//动态分配内存
+
+            Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox3.Text) * 100));//扭矩值
+            dat[0] = Data_Temp[0];
+            dat[1] = Data_Temp[1];
+
+            dat[2] = (Byte)(Convert.ToByte(checkBox3.Checked) << 7);// torque enable
+            dat[3] = (Byte)(Convert.ToSingle(textBox1.Text) * 20);//acc value
+
+            dat[4] = (Byte)(Convert.ToByte(checkBox1.Checked) << 4);//ACC enable
+            dat[5] = 0;
+
+            dat[6] = 0;
+            dat[7] = 0;
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+        }
+
+        private void BoRuiInterfaceCAN1()
+        {
+            uint id = 0x518;
+            byte len = 8;
+            byte[] dat = new byte[8];
+            byte[] Data_Temp = new byte[8];//动态分配内存
+
+            Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox4.Text) * 10));//转向角
+            dat[0] = Data_Temp[0];
+            dat[1] = Data_Temp[1];
+            dat[2] = (byte)(Convert.ToSingle(textBox5.Text) * 0.25);
+            dat[3] = (Byte)(Convert.ToSingle(textBox32.Text) * 10);//刹停速度
+            Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox31.Text)*1000));//刹停距离
+            dat[4] = Data_Temp[0];
+            dat[5] = Data_Temp[1];
+
+            dat[6] = Convert.ToByte(comboBox3.SelectedIndex);// 挡位
+            dat[7] = Convert.ToByte(checkBox4.Checked);
+
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+        }
+        #endregion
+
         #region 终端解码函数
         private delegate void TerminalParse(ZLGCAN.VCI_CAN_OBJ m_packet);
         private void UltrasonicParse(ZLGCAN.VCI_CAN_OBJ m_packet)
@@ -860,11 +963,16 @@ namespace APA_DebugAssistant
                 case 0x407://传感器8
                     tmp_dat[0] = m_packet.Data[0];
                     tmp_dat[1] = m_packet.Data[1];
-                    //m_LIN_STP318_ReadData[m_packet.ID & 0x007].TOF = BitConverter.ToUInt16(tmp_dat, 0);
-                    //m_LIN_STP318_ReadData[m_packet.ID & 0x007].status = m_packet.Data[6];
-
-                    m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Distance1 = BitConverter.ToUInt16(tmp_dat, 0) * 0.01f;
-                    m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].status = m_packet.Data[6];
+                    if(1 == UltrasonicDataType)
+                    {
+                        m_LIN_STP318_ReadData[m_packet.ID & 0x007].TOF = BitConverter.ToUInt16(tmp_dat, 0);
+                        m_LIN_STP318_ReadData[m_packet.ID & 0x007].status = m_packet.Data[6];
+                    }
+                    else if (2 == UltrasonicDataType)
+                    {
+                        m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Distance1 = BitConverter.ToUInt16(tmp_dat, 0) * 0.01f;
+                        m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].status = m_packet.Data[6];
+                    }
                     break;
 
                 case 0x408://传感器9
@@ -873,20 +981,127 @@ namespace APA_DebugAssistant
                 case 0x40B://传感器12
                     tmp_dat[0] = m_packet.Data[0];
                     tmp_dat[1] = m_packet.Data[1];
-                    //m_LIN_STP313_ReadData[m_packet.ID & 0x003].TOF1 = BitConverter.ToUInt16(tmp_dat, 0);
-                    m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Distance1 = BitConverter.ToUInt16(tmp_dat, 0) * 0.01f;
+                    if (1 == UltrasonicDataType)
+                    {
+                        m_LIN_STP313_ReadData[m_packet.ID & 0x003].TOF1 = BitConverter.ToUInt16(tmp_dat, 0);
+                    }
+                    else if (2 == UltrasonicDataType)
+                    {
+                        m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Distance1 = BitConverter.ToUInt16(tmp_dat, 0) * 0.01f;
+                    }                    
                     tmp_dat[0] = m_packet.Data[2];
                     tmp_dat[1] = m_packet.Data[3];
-                    //m_LIN_STP313_ReadData[m_packet.ID & 0x003].TOF2 = BitConverter.ToUInt16(tmp_dat, 0);
-                    m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Distance2 = BitConverter.ToUInt16(tmp_dat, 0) * 0.01f;
-                    //m_LIN_STP313_ReadData[m_packet.ID & 0x003].Level = m_packet.Data[4];
-                    //m_LIN_STP313_ReadData[m_packet.ID & 0x003].Width = m_packet.Data[5];
-                    //m_LIN_STP313_ReadData[m_packet.ID & 0x003].status = m_packet.Data[6];
-                    m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Level = m_packet.Data[4] * 0.1f;
-                    m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Width = m_packet.Data[5];
-                    m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].status = m_packet.Data[6];
+                    if (1 == UltrasonicDataType)
+                    {
+                        m_LIN_STP313_ReadData[m_packet.ID & 0x003].TOF2 = BitConverter.ToUInt16(tmp_dat, 0);
+                        m_LIN_STP313_ReadData[m_packet.ID & 0x003].Level = m_packet.Data[4];
+                        m_LIN_STP313_ReadData[m_packet.ID & 0x003].Width = m_packet.Data[5];
+                        m_LIN_STP313_ReadData[m_packet.ID & 0x003].status = m_packet.Data[6];
+                    }
+                    else if(2 == UltrasonicDataType)
+                    {
+                        m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Distance2 = BitConverter.ToUInt16(tmp_dat, 0) * 0.01f;
+                        m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Level = m_packet.Data[4] * 0.1f;
+                        m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].Width = m_packet.Data[5];
+                        m_Ultrasonic_Data_Packet[m_packet.ID & 0x00f].status = m_packet.Data[6];
+                    }
                     break;
 
+                case 0x470:
+                case 0x471:
+                case 0x472:
+                case 0x473:
+                case 0x474:
+                case 0x475:
+                case 0x476:
+                case 0x477:
+                case 0x478:
+                case 0x479:
+                case 0x47A:
+                case 0x47B:
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    if (1 == UltrasonicDataType)
+                    {
+                        m_LIN_STP318_Location_ReadData[m_packet.ID & 0x00F].TOF = BitConverter.ToUInt16(tmp_dat, 0);
+                        m_LIN_STP318_Location_ReadData[m_packet.ID & 0x00F].status = m_packet.Data[6];
+                    }
+                    else if (2 == UltrasonicDataType)
+                    {
+                        m_Ultrasonic_Location_Data_Packet[m_packet.ID & 0x00f].Distance1 = BitConverter.ToUInt16(tmp_dat, 0) * 0.01f;
+                        m_Ultrasonic_Location_Data_Packet[m_packet.ID & 0x00f].status    = m_packet.Data[6];
+                    }
+                    break;
+
+                case 0x480:
+                case 0x481:
+                case 0x482:
+                case 0x483:
+                case 0x484:
+                case 0x485:
+                case 0x486:
+                case 0x487:
+                case 0x488:
+                case 0x489:
+                case 0x48A:
+                case 0x48B:
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    m_BodyTriangleLocation[m_packet.ID & 0x00f].x = BitConverter.ToInt16(tmp_dat, 0) * 0.001;
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    m_BodyTriangleLocation[m_packet.ID & 0x00f].y = BitConverter.ToInt16(tmp_dat, 0) * 0.001;
+                    m_BodyTriangleLocation[m_packet.ID & 0x00f].state = (UltrasonicStatus)m_packet.Data[7];
+                    break;
+
+                case 0x48C:
+                case 0x48D:
+                case 0x48E:
+                case 0x48F:
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    m_BodyDirectLocation[m_packet.ID & 0x00f].x = BitConverter.ToInt16(tmp_dat, 0) * 0.001;
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    m_BodyDirectLocation[m_packet.ID & 0x00f].y = BitConverter.ToInt16(tmp_dat, 0) * 0.001;
+                    m_BodyDirectLocation[m_packet.ID & 0x00f].state = (UltrasonicStatus)m_packet.Data[7];
+                    break;
+                    
+                // 地面坐标系
+                case 0x490:
+                case 0x491:
+                case 0x492:
+                case 0x493:
+                case 0x494:
+                case 0x495:
+                case 0x496:
+                case 0x497:
+                case 0x498:
+                case 0x499:
+                case 0x49A:
+                case 0x49B:
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    m_GroundTriangleLocation[m_packet.ID & 0x00f].x = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    m_GroundTriangleLocation[m_packet.ID & 0x00f].y = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    m_GroundTriangleLocation[m_packet.ID & 0x00f].state = (UltrasonicStatus)m_packet.Data[7];
+                    break;
+
+                case 0x49C:
+                case 0x49D:
+                case 0x49E:
+                case 0x49F:
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    m_GroundDirectLocation[m_packet.ID & 0x00f].x = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    m_GroundDirectLocation[m_packet.ID & 0x00f].y = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    m_GroundDirectLocation[m_packet.ID & 0x00f].state = (UltrasonicStatus)m_packet.Data[7];
+                    break;
+                    
                 case 0x416:
                     if (m_packet.Data[1] == 0xA5)
                     {
@@ -1006,6 +1221,9 @@ namespace APA_DebugAssistant
                     tmp_dat[0] = m_packet.Data[4];
                     tmp_dat[1] = m_packet.Data[5];
                     TrackPoint.Yaw = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[6];
+                    tmp_dat[1] = m_packet.Data[7];
+                    ActualTurnRadius = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
                     track_update_status = 0xa5;
                     break;
 
@@ -1297,16 +1515,41 @@ namespace APA_DebugAssistant
         {
             for(int i =0;i<8;i++ )
             {
-                //m_Ultrasonic.DataMapping2Control_STP318(m_LIN_STP318_ReadData[i], ref SensingControl_SRU[i]);
-                m_Ultrasonic.DataMapping2Control_STP318Packet(m_Ultrasonic_Data_Packet[i], ref SensingControl_SRU[i]);
+                if (1 == UltrasonicDataType)
+                {
+                    m_Ultrasonic.DataMapping2Control_STP318(m_LIN_STP318_ReadData[i], ref SensingControl_SRU[i]);
+                }
+                else if (2 == UltrasonicDataType)
+                {
+                    m_Ultrasonic.DataMapping2Control_STP318Packet(m_Ultrasonic_Data_Packet[i], ref SensingControl_SRU[i]);
+                }
+                    
             }
-            //for (int i = 0; i < 4; i++)
-            //{
-            //    m_Ultrasonic.DataMapping2Control_STP313(m_LIN_STP313_ReadData[i], ref SensingControl_LRU[i]);
-            //}
-            for (int i = 8; i < 12; i++)
+            for (int i = 0; i < 12; i++)
             {
-                m_Ultrasonic.DataMapping2Control_STP313Packet(m_Ultrasonic_Data_Packet[i], ref SensingControl_LRU[i - 8]);
+                if(1 == UltrasonicDataType)
+                {
+                    m_Ultrasonic.DataMapping2Control_STP318(m_LIN_STP318_Location_ReadData[i], ref SensingLocation_SRU[i/3][i%3]);
+                }
+                else if (2 == UltrasonicDataType)
+                {
+                    m_Ultrasonic.DataMapping2Control_STP318Packet(m_Ultrasonic_Location_Data_Packet[i], ref SensingLocation_SRU[i / 3][i % 3]);
+                }
+            }
+            
+            if (1 == UltrasonicDataType)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    m_Ultrasonic.DataMapping2Control_STP313(m_LIN_STP313_ReadData[i], ref SensingControl_LRU[i]);
+                }
+            }
+            else if (2 == UltrasonicDataType)
+            {
+                for (int i = 8; i < 12; i++)
+                {
+                    m_Ultrasonic.DataMapping2Control_STP313Packet(m_Ultrasonic_Data_Packet[i], ref SensingControl_LRU[i - 8]);
+                }
             }
         }
 
@@ -1322,6 +1565,64 @@ namespace APA_DebugAssistant
                 }
             }
         }
+
+        /// <summary>
+        /// 三角定位坐标显示
+        /// </summary>
+        private void UltrasonicLocationFormShow()
+        {
+            UltrasonicBodyTriangleLocation.Points.Clear();
+            for (int i=0;i<8;i++)
+            {
+                if(UltrasonicStatus.Normal == m_BodyTriangleLocation[i].state)
+                {
+                    UltrasonicBodyTriangleLocation.Points.AddXY(m_BodyTriangleLocation[i].x, m_BodyTriangleLocation[i].y);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 直接定位坐标显示
+        /// </summary>
+        private void UltrasonicLocationDirectFormShow()
+        {
+            UltrasonicBodyDirectLocation.Points.Clear();
+            for (int i = 8; i < 12; i++)
+            {
+                if (UltrasonicStatus.Normal == m_BodyDirectLocation[i].state)
+                {
+                    UltrasonicBodyDirectLocation.Points.AddXY(m_BodyDirectLocation[i].x, m_BodyDirectLocation[i].y);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 三角定位地面坐标显示
+        /// </summary>
+        private void UltrasonicGroundLocationTriangleFormShow()
+        {
+            for (int i = 0; i < 8; i++)
+            {
+                if(UltrasonicStatus.Normal == m_GroundTriangleLocation[i].state)
+                {
+                    UltrasonicGroundTriangleLocation.Points.AddXY(m_GroundTriangleLocation[i].x, m_GroundTriangleLocation[i].y);
+                }               
+            }
+        }
+
+        /// <summary>
+        /// 直接定位地面坐标显示
+        /// </summary>
+        private void UltrasonicGroundLocationDirectFormShow()
+        {
+            for (int i = 8; i < 12; i++)
+            {
+                if (UltrasonicStatus.Normal == m_GroundDirectLocation[i].state)
+                {
+                    UltrasonicGroundDirectLocation.Points.AddXY(m_GroundDirectLocation[i].x, m_GroundDirectLocation[i].y);
+                }
+            }
+        }
         /// <summary>
         /// 跟踪轨迹显示
         /// </summary>
@@ -1333,9 +1634,13 @@ namespace APA_DebugAssistant
                 label120.Text = TrackPoint.Position.X.ToString();
                 label121.Text = TrackPoint.Position.Y.ToString();
                 label122.Text = TrackPoint.Yaw.ToString();
+                label146.Text = ActualTurnRadius.ToString();
 
-                TrackDataShow.Points.AddXY(TrackPoint.Position.X, TrackPoint.Position.Y);
-
+                if((0 != TrackPoint.Position.X) && ( 0 != TrackPoint.Position.Y))
+                {
+                    TrackDataShow.Points.AddXY(TrackPoint.Position.X, TrackPoint.Position.Y);
+                }
+        
                 AxisRotation(TrackPoint, FrontLeftDiagonal, ref VehicleEdgePoint[0]);
                 AxisRotation(TrackPoint, FrontRightDiagonal, ref VehicleEdgePoint[1]);
                 AxisRotation(TrackPoint, RearLeftDiagonal, ref VehicleEdgePoint[3]);
@@ -1518,6 +1823,53 @@ namespace APA_DebugAssistant
         }
 
         /// <summary>
+        /// 检车位专用的数据保存，与之前格式统一
+        /// </summary>
+        private void ParkingDetectionDataLogOld()
+        {
+            ErrTime = timeGetTime() - LastTime;
+            //数据保存
+            if (u_DataSaveStatus)
+            {
+                ULtrasonicDataSave.Write(
+                                "{0:D} {1:D} " +
+                                "{2:R16} {3:R16} " +
+                                "{4:D} {5:R16} " +
+                                "{6:R16} {7:R16} {8:R16} {9:R16} " +
+                                "{10:R16} {11:R16} {12:R16} {13:R16} " +
+                                "{14:R16} {15:R16} {16:R16} {17:R16} " +
+                                "{18:R16} {19:R16} {20:R16} {21:R16} " +
+                                "\r\n",
+                                LastTime, ErrTime,
+                                /// Vehicle Speed
+                                m_Vehicle.VehicleSpeed,
+                                m_Vehicle.VehicleSpeed,
+                                /// Steering Angle 
+                                m_Vehicle.SteeringAngleSpeed,
+                                m_Vehicle.SteeringAngleActual,
+                                // Ultrasonic
+                                m_LIN_STP313_ReadData[0].TOF1 / 58.0,
+                                m_LIN_STP313_ReadData[1].TOF1 / 58.0,
+                                m_LIN_STP313_ReadData[2].TOF1 / 58.0,
+                                m_LIN_STP313_ReadData[3].TOF1 / 58.0,
+                                m_LIN_STP313_ReadData[0].Width * 16.0,
+                                m_LIN_STP313_ReadData[1].Width * 16.0,
+                                m_LIN_STP313_ReadData[2].Width * 16.0,
+                                m_LIN_STP313_ReadData[3].Width * 16.0,
+                                m_LIN_STP313_ReadData[0].TOF2 / 58.0,
+                                m_LIN_STP313_ReadData[1].TOF2 / 58.0,
+                                m_LIN_STP313_ReadData[2].TOF2 / 58.0,
+                                m_LIN_STP313_ReadData[3].TOF2 / 58.0,
+                                m_LIN_STP313_ReadData[0].Level * 3.3 / 255,
+                                m_LIN_STP313_ReadData[1].Level * 3.3 / 255,
+                                m_LIN_STP313_ReadData[2].Level * 3.3 / 255,
+                                m_LIN_STP313_ReadData[3].Level * 3.3 / 255
+                );
+            }
+            LastTime = timeGetTime();
+        }
+
+        /// <summary>
         /// 数据包保存
         /// </summary>
         private void ParkingDetectionPacketDataLog()
@@ -1579,6 +1931,82 @@ namespace APA_DebugAssistant
             }
             ParkingLastTime = timeGetTime();
         }
+
+        /// <summary>
+        /// 数据包保存
+        /// </summary>
+        private void UltrasonicPacketDataLog()
+        {
+            UltrasonicErrTime = timeGetTime() - UltrasonicLastTime;
+            //数据保存
+            if (u_DataSaveStatus)
+            {
+                ULtrasonicDataSave.Write(
+                                "{0:D} " +
+                                "{1:R16} {2:D} {3:R16} {4:D} " +
+                                "{5:R16} {6:D} {7:R16} {8:D} " +
+                                "{9:R16}  {10:D} {11:R16} {12:D} " +
+                                "{13:R16} {14:D} {15:R16} {16:D} " +
+                                "{17:R16} {18:R16} {19:R16} {20:R16} {21:D} " +
+                                "{22:R16} {23:R16} {24:R16} {25:R16} {26:D} " +
+                                "{27:R16} {28:R16} {29:R16} {30:R16} {31:D} " +
+                                "{32:R16} {33:R16} {34:R16} {35:R16} {36:D} " +
+                                "{37:R16} {38:R16} {39:R16}" +
+                                "{40:R16} {41:R16} {42:R16} {43:R16} " +
+                                "\r\n",
+                                UltrasonicErrTime,
+                                // Ultrasonic
+                                m_Ultrasonic_Data_Packet[0].Distance1,
+                                m_Ultrasonic_Data_Packet[0].status,
+                                m_Ultrasonic_Data_Packet[1].Distance1,
+                                m_Ultrasonic_Data_Packet[1].status,
+                                m_Ultrasonic_Data_Packet[2].Distance1,
+                                m_Ultrasonic_Data_Packet[2].status,
+                                m_Ultrasonic_Data_Packet[3].Distance1,
+                                m_Ultrasonic_Data_Packet[3].status,
+                                m_Ultrasonic_Data_Packet[4].Distance1,
+                                m_Ultrasonic_Data_Packet[4].status,
+                                m_Ultrasonic_Data_Packet[5].Distance1,
+                                m_Ultrasonic_Data_Packet[5].status,
+                                m_Ultrasonic_Data_Packet[6].Distance1,
+                                m_Ultrasonic_Data_Packet[6].status,
+                                m_Ultrasonic_Data_Packet[7].Distance1,
+                                m_Ultrasonic_Data_Packet[7].status,
+                                m_Ultrasonic_Data_Packet[8].Distance1,
+                                m_Ultrasonic_Data_Packet[8].Distance2,
+                                m_Ultrasonic_Data_Packet[8].Level,
+                                m_Ultrasonic_Data_Packet[8].Width,
+                                m_Ultrasonic_Data_Packet[8].status,
+                                m_Ultrasonic_Data_Packet[9].Distance1,
+                                m_Ultrasonic_Data_Packet[9].Distance2,
+                                m_Ultrasonic_Data_Packet[9].Level,
+                                m_Ultrasonic_Data_Packet[9].Width,
+                                m_Ultrasonic_Data_Packet[9].status,
+                                m_Ultrasonic_Data_Packet[10].Distance1,
+                                m_Ultrasonic_Data_Packet[10].Distance2,
+                                m_Ultrasonic_Data_Packet[10].Level,
+                                m_Ultrasonic_Data_Packet[10].Width,
+                                m_Ultrasonic_Data_Packet[10].status,
+                                m_Ultrasonic_Data_Packet[11].Distance1,
+                                m_Ultrasonic_Data_Packet[11].Distance2,
+                                m_Ultrasonic_Data_Packet[11].Level,
+                                m_Ultrasonic_Data_Packet[11].Width,
+                                m_Ultrasonic_Data_Packet[11].status,
+
+                                /// 跟踪位置信息
+                                TrackPoint.Position.X,
+                                TrackPoint.Position.Y,
+                                TrackPoint.Yaw,
+                                /// Steering Angle 
+                                m_Vehicle.SteeringAngleActual,
+                                m_Vehicle.VehicleSpeed,
+                                /// WheelSpeed
+                                m_Vehicle.WheelSpeedRearLeftData,
+                                m_Vehicle.WheelSpeedRearRightData
+                );
+            }
+            UltrasonicLastTime = timeGetTime();
+        }
         /// <summary>
         /// 库位信息保存
         /// </summary>
@@ -1598,7 +2026,6 @@ namespace APA_DebugAssistant
                                 VehicleInitPosition.Yaw
                 );
             }
-            
         }
 
         private void PlanningInfDataLog()
@@ -1640,85 +2067,58 @@ namespace APA_DebugAssistant
             PlanLastTime = timeGetTime();
         }
 
-        /// <summary>
-        /// 数据包保存
-        /// </summary>
-        private void UltrasonicPacketDataLog()
+        private void LocationMapInfDataLog()
         {
-            ParkingErrTime = timeGetTime() - ParkingLastTime;
+            LocationMapErrTime = timeGetTime() - LocationMapLastTime;
             //数据保存
             if (PlanningDataSaveStatus)
             {
-                ULtrasonicDataSave.Write(
+                LocationMapDataSave.Write(
                                 "{0:D} " +
-                                "{1:R16} {2:D} {3:R16} {4:D} " +
-                                "{5:R16} {6:D} {7:R16} {8:D} " +
-                                "{9:R16}  {10:D} {11:R16} {12:D} " +
-                                "{13:R16} {14:D} {15:R16} {16:D} " +
-
-                                "{17:R16} {18:R16} {19:R16} {20:R16} {21:D} " +
-                                "{22:R16} {23:R16} {24:R16} {25:R16} {26:D} " +
-                                "{27:R16} {28:R16} {29:R16} {30:R16} {31:D} " +
-                                "{32:R16} {33:R16} {34:R16} {35:R16} {36:D} " +
-
-                                "{37:R16} {38:R16} {39:R16}" +
-
-                                "{40:R16} {41:R16} {42:R16} {43:R16} " +                               
+                                "{1:R} {2:R} {3:D} " +
+                                "{4:R} {5:R} {6:D} " +
+                                "{7:R} {8:R} {9:D} " +
+                                "{10:R} {11:R} {12:D} " +
+                                "{13:R} {14:R} {15:D} " +
+                                "{16:R} {17:R} {18:D} " +
+                                "{19:R} {20:R} {21:D} " +
+                                "{22:R} {23:R} {24:D} " +
+                                "{25:R} {26:R} {27:R} " +
                                 "\r\n",
-                                ErrTime,
-                                // Ultrasonic
-                                m_Ultrasonic_Data_Packet[0].Distance1,
-                                m_Ultrasonic_Data_Packet[0].status,
-                                m_Ultrasonic_Data_Packet[1].Distance1,
-                                m_Ultrasonic_Data_Packet[1].status,
-                                m_Ultrasonic_Data_Packet[2].Distance1,
-                                m_Ultrasonic_Data_Packet[2].status,
-                                m_Ultrasonic_Data_Packet[3].Distance1,
-                                m_Ultrasonic_Data_Packet[3].status,
-                                m_Ultrasonic_Data_Packet[4].Distance1,
-                                m_Ultrasonic_Data_Packet[4].status,
-                                m_Ultrasonic_Data_Packet[5].Distance1,
-                                m_Ultrasonic_Data_Packet[5].status,
-                                m_Ultrasonic_Data_Packet[6].Distance1,
-                                m_Ultrasonic_Data_Packet[6].status,
-                                m_Ultrasonic_Data_Packet[7].Distance1,
-                                m_Ultrasonic_Data_Packet[7].status,
-
-                                m_Ultrasonic_Data_Packet[8].Distance1,
-                                m_Ultrasonic_Data_Packet[8].Distance2,
-                                m_Ultrasonic_Data_Packet[8].Level,
-                                m_Ultrasonic_Data_Packet[8].Width,
-                                m_Ultrasonic_Data_Packet[8].status,
-                                m_Ultrasonic_Data_Packet[9].Distance1,
-                                m_Ultrasonic_Data_Packet[9].Distance2,
-                                m_Ultrasonic_Data_Packet[9].Level,
-                                m_Ultrasonic_Data_Packet[9].Width,
-                                m_Ultrasonic_Data_Packet[9].status,
-                                m_Ultrasonic_Data_Packet[10].Distance1,
-                                m_Ultrasonic_Data_Packet[10].Distance2,
-                                m_Ultrasonic_Data_Packet[10].Level,
-                                m_Ultrasonic_Data_Packet[10].Width,
-                                m_Ultrasonic_Data_Packet[10].status,
-                                m_Ultrasonic_Data_Packet[11].Distance1,
-                                m_Ultrasonic_Data_Packet[11].Distance2,
-                                m_Ultrasonic_Data_Packet[11].Level,
-                                m_Ultrasonic_Data_Packet[11].Width,
-                                m_Ultrasonic_Data_Packet[11].status,
-
+                                LocationMapErrTime,
+                                m_GroundTriangleLocation[0].x,
+                                m_GroundTriangleLocation[0].y,
+                                m_GroundTriangleLocation[0].state,
+                                m_GroundTriangleLocation[1].x,
+                                m_GroundTriangleLocation[1].y,
+                                m_GroundTriangleLocation[1].state,
+                                m_GroundTriangleLocation[2].x,
+                                m_GroundTriangleLocation[2].y,
+                                m_GroundTriangleLocation[2].state,
+                                m_GroundTriangleLocation[3].x,
+                                m_GroundTriangleLocation[3].y,
+                                m_GroundTriangleLocation[3].state,
+                                m_GroundTriangleLocation[4].x,
+                                m_GroundTriangleLocation[4].y,
+                                m_GroundTriangleLocation[4].state,
+                                m_GroundTriangleLocation[5].x,
+                                m_GroundTriangleLocation[5].y,
+                                m_GroundTriangleLocation[6].state,
+                                m_GroundTriangleLocation[6].x,
+                                m_GroundTriangleLocation[6].y,
+                                m_GroundTriangleLocation[6].state,
+                                m_GroundTriangleLocation[7].x,
+                                m_GroundTriangleLocation[7].y,
+                                m_GroundTriangleLocation[7].state,
                                 /// 跟踪位置信息
                                 TrackPoint.Position.X,
                                 TrackPoint.Position.Y,
-                                TrackPoint.Yaw,
-                                /// Steering Angle 
-                                m_Vehicle.SteeringAngleActual,
-                                m_Vehicle.VehicleSpeed,
-                                /// WheelSpeed
-                                m_Vehicle.WheelSpeedRearLeftData,
-                                m_Vehicle.WheelSpeedRearRightData
+                                TrackPoint.Yaw
                 );
             }
-            ParkingLastTime = timeGetTime();
+            LocationMapLastTime = timeGetTime();
         }
+        
         #endregion
 
         #region utils math
@@ -1736,14 +2136,38 @@ namespace APA_DebugAssistant
         public Form1()
         {
             InitializeComponent();
+            //newBitmap.Palette = GreyColorPalette;
+            newBitmap = new Bitmap(300, 600);
+            newBitmap.SetPixel(1,1,Color.Black);
+            newBitmap.SetPixel(1, 2, Color.Black);
+            newBitmap.SetPixel(2, 2, Color.Black);
+            newBitmap.SetPixel(2, 1, Color.Black);
+            pictureBox1.Image = newBitmap;
 
             m_SerialCom.AddBaudRate(comboBox2);
             serialPort1.Encoding = Encoding.GetEncoding("GB2312");
             serialPort1.DataReceived += new SerialDataReceivedEventHandler(serialPort1_DataReceived);
             ///超声波数据显示
-            ultrasonic_chart.ChartAreas[0].AxisY.Maximum = 400;
-            ultrasonic_chart.ChartAreas[0].AxisY.Minimum = 0;
+            //ultrasonic_chart.ChartAreas[0].AxisX.Maximum = 1.5;
+            //ultrasonic_chart.ChartAreas[0].AxisX.Minimum = 0;
+            //ultrasonic_chart.ChartAreas[0].AxisY.Maximum = 1;
+            //ultrasonic_chart.ChartAreas[0].AxisY.Minimum = -1;
+            //ultrasonic_chart.ChartAreas[0].AxisX.Interval = 0.01;
+            //ultrasonic_chart.ChartAreas[0].AxisY.Interval = 0.1;
+
+            ultrasonic_chart.ChartAreas[0].AxisX.Maximum = 6;
+            ultrasonic_chart.ChartAreas[0].AxisX.Minimum = -3;
+            ultrasonic_chart.ChartAreas[0].AxisY.Maximum = 2;
+            ultrasonic_chart.ChartAreas[0].AxisY.Minimum = -2;
+            ultrasonic_chart.ChartAreas[0].AxisX.Interval = 1;
+            ultrasonic_chart.ChartAreas[0].AxisY.Interval = 1;
+
             ultrasonic_chart.Series.Add(UltrasonicDataShow);
+            ultrasonic_chart.Series.Add(UltrasonicVehicle); //超声车身
+            ultrasonic_chart.Series.Add(UltrasonicBodyDirectLocation);//超声障碍物定位(车体坐标系)
+            ultrasonic_chart.Series.Add(UltrasonicBodyTriangleLocation);//超声障碍物定位(车体坐标系)
+            
+
             UltrasonicDataShow.ChartType = SeriesChartType.Point;
             UltrasonicDataShow.BorderWidth = 5;
             UltrasonicDataShow.BorderDashStyle = ChartDashStyle.Dash;
@@ -1751,13 +2175,38 @@ namespace APA_DebugAssistant
             UltrasonicDataShow.IsVisibleInLegend = true;
             UltrasonicDataShow.LegendText = "超声波数据";
 
+            UltrasonicVehicle.ChartType = SeriesChartType.FastLine;
+            UltrasonicVehicle.BorderWidth = 5;
+            UltrasonicVehicle.BorderDashStyle = ChartDashStyle.Solid;
+            UltrasonicVehicle.Color = Color.DarkRed;
+            UltrasonicVehicle.IsVisibleInLegend = true;
+            UltrasonicVehicle.LegendText = "车身模型";
+
+            UltrasonicBodyTriangleLocation.ChartType = SeriesChartType.Point;
+            UltrasonicBodyTriangleLocation.BorderWidth = 3;
+            UltrasonicBodyTriangleLocation.BorderDashStyle = ChartDashStyle.Dash;
+            UltrasonicBodyTriangleLocation.Color = Color.Green;
+            UltrasonicBodyTriangleLocation.IsVisibleInLegend = true;
+            UltrasonicBodyTriangleLocation.LegendText = "障碍物三角定位";
+            //UltrasonicBodyTriangleLocation.IsValueShownAsLabel = true;
+            //UltrasonicLocation.
+
+
+            UltrasonicBodyDirectLocation.ChartType = SeriesChartType.Point;
+            UltrasonicBodyDirectLocation.BorderWidth = 3;
+            UltrasonicBodyDirectLocation.BorderDashStyle = ChartDashStyle.Dash;
+            UltrasonicBodyDirectLocation.Color = Color.Red;
+            UltrasonicBodyDirectLocation.IsVisibleInLegend = true;
+            UltrasonicBodyDirectLocation.LegendText = "障碍物直接定位";
+            //UltrasonicBodyDirectLocation.IsValueShownAsLabel = true;
+
             /// 车辆泊车图形显示
-            track_chart.ChartAreas[0].AxisX.Maximum = 12;
-            track_chart.ChartAreas[0].AxisX.Minimum = -1;
-            track_chart.ChartAreas[0].AxisY.Maximum = 5;
-            track_chart.ChartAreas[0].AxisY.Minimum = -3;
-            track_chart.ChartAreas[0].AxisX.Interval = 0.5;
-            track_chart.ChartAreas[0].AxisY.Interval = 0.5;
+            track_chart.ChartAreas[0].AxisX.Maximum = 80;
+            track_chart.ChartAreas[0].AxisX.Minimum = -80;
+            track_chart.ChartAreas[0].AxisY.Maximum = 40;
+            track_chart.ChartAreas[0].AxisY.Minimum = -40;
+            //track_chart.ChartAreas[0].AxisX.Interval = 0.5;
+            //track_chart.ChartAreas[0].AxisY.Interval = 0.5;
 
             track_chart.Series.Add(TrackDataShow);
             TrackDataShow.ChartType = SeriesChartType.FastLine;
@@ -1799,6 +2248,24 @@ namespace APA_DebugAssistant
             TurnningPointShow.Color = Color.DarkGreen;
             TurnningPointShow.IsVisibleInLegend = true;
             TurnningPointShow.LegendText = "转向角切换点";
+
+            
+            track_chart.Series.Add(UltrasonicGroundDirectLocation);
+            UltrasonicGroundDirectLocation.ChartType = SeriesChartType.FastPoint;
+            UltrasonicGroundDirectLocation.BorderWidth = 2;
+            UltrasonicGroundDirectLocation.BorderDashStyle = ChartDashStyle.Solid;
+            UltrasonicGroundDirectLocation.Color = Color.DarkGreen;
+            UltrasonicGroundDirectLocation.IsVisibleInLegend = true;
+            UltrasonicGroundDirectLocation.LegendText = "地面坐标系直接定位";
+
+            track_chart.Series.Add(UltrasonicGroundTriangleLocation);
+            UltrasonicGroundTriangleLocation.ChartType = SeriesChartType.FastPoint;
+            UltrasonicGroundTriangleLocation.BorderWidth = 2;
+            UltrasonicGroundTriangleLocation.BorderDashStyle = ChartDashStyle.Solid;
+            UltrasonicGroundTriangleLocation.Color = Color.DarkBlue;
+            UltrasonicGroundTriangleLocation.IsVisibleInLegend = true;
+            UltrasonicGroundTriangleLocation.LegendText = "地面坐标系三角定位";
+ 
             // add the thread of the can receive
             ThreadStart CANTreadChild = new ThreadStart(CallToCANReceiveThread);
             Thread m_CanReceiveChildThread = new Thread(CANTreadChild);
@@ -1852,6 +2319,16 @@ namespace APA_DebugAssistant
                 new Label[2]{label77,label84 },
                 new Label[2]{label78,label85 }
             };
+
+            SensingLocation_SRU = new Label[4][]
+            {
+                new Label[3]{ label150, label151,label152 },
+                new Label[3]{ label153, label154,label155 },
+                new Label[3]{ label156, label157,label158 },
+                new Label[3]{ label159, label160,label161 }
+            };
+
+            u_color = new Color[4] { Color.Red,Color.Green,Color.Green,Color.Red};
             /// 车辆初始参数计算
             /// 
             FrontLeftDiagonal.Length = Math.Sqrt( Math.Pow(LEFT_EDGE_TO_CENTER, 2) + Math.Pow(FRONT_EDGE_TO_CENTER,2));
@@ -1877,7 +2354,23 @@ namespace APA_DebugAssistant
 
             ParkingShow();
             VehicleShow(VehicleInitPosition);
-    }
+
+            LocationPoint p = new LocationPoint();
+            p.Position.X = 0;
+            p.Position.Y = 0;
+            p.Yaw = 0;
+
+            UltrasonicVehicle.Points.Clear();
+            AxisRotation(p, FrontLeftDiagonal, ref VehicleEdgePoint[0]);
+            AxisRotation(p, FrontRightDiagonal, ref VehicleEdgePoint[1]);
+            AxisRotation(p, RearLeftDiagonal, ref VehicleEdgePoint[3]);
+            AxisRotation(p, RearRightDiagonal, ref VehicleEdgePoint[2]);
+            for (int i = 0; i < 4; i++)
+            {
+                UltrasonicVehicle.Points.AddXY(VehicleEdgePoint[i].X, VehicleEdgePoint[i].Y);
+            }
+            UltrasonicVehicle.Points.AddXY(VehicleEdgePoint[0].X, VehicleEdgePoint[0].Y);
+        }
         #endregion
 
         #region CAN接收线程
@@ -1909,11 +2402,10 @@ namespace APA_DebugAssistant
                         VehicleParse(obj[i]);
                     }
                     m_ZLGCAN.CAN_Receive(VehicleSendCAN, ref obj);
-                    for (int i = 0; i < obj.Length; i++)
+                    for (int i = 0; i < obj.Length-1; i++)
                     {
                         VehicleSendParse(obj[i]);
                     }
-
                 }
                 Thread.Sleep(10);
             }
@@ -1948,7 +2440,9 @@ namespace APA_DebugAssistant
         /// <param name="e"></param>
         private void button2_Click(object sender, EventArgs e)
         {
-            VehicleParameterConfigure();
+            //VehicleControlCAN_BR1();
+            //VehicleControlCAN_BR2();
+            //VehicleParameterConfigure();
         }
 
         /// <summary>
@@ -1988,9 +2482,10 @@ namespace APA_DebugAssistant
         /// <param name="e"></param>
         private void button10_Click(object sender, EventArgs e)
         {
-            //ChangAnInterfaceTest();
-            ChangAnInterfaceCAN1();
-            ChangAnInterfaceCAN2();
+            //ChangAnInterfaceCAN1();
+            //ChangAnInterfaceCAN2();
+
+            BoRuiInterfaceCAN1();
         }
 
         /// <summary>
@@ -2181,19 +2676,41 @@ namespace APA_DebugAssistant
         #region 定时器事件
         private void timer_show_Tick(object sender, EventArgs e)
         {
-            if(checkBox7.Checked)
+            if (0 == tabControl1.SelectedIndex)
             {
-                EPB_VehicleSpeedSimulation();
-                SAS_SteeringAngleSimulation();
-                TCU_GearSimulation();
+                VehicleImformationShow();
             }
-            ParkingControlShow();
-            VehicleImformationShow();
-            UltrasonicImformationShow();
-            UltrasonicImformationFormShow();
-            TrackInformationShow();
-            ParkingShow();
-            TurnningAngleShiftShow();
+            else if(1 == tabControl1.SelectedIndex)
+            {
+                if(checkBox9.Checked)
+                {
+                    UltrasonicImformationShow();
+                    //UltrasonicImformationFormShow();//原始数据波形显示
+                }
+                if(checkBox10.Checked)
+                {
+                    UltrasonicLocationFormShow();
+                    //UltrasonicLocationDirectFormShow();
+                }
+            }
+            else if (2 == tabControl1.SelectedIndex)
+            {
+                if (checkBox7.Checked)
+                {
+                    EPB_VehicleSpeedSimulation();
+                    SAS_SteeringAngleSimulation();
+                    TCU_GearSimulation();
+                }
+                if (checkBox8.Checked)
+                {
+                    UltrasonicGroundLocationTriangleFormShow();
+                }
+                ParkingControlShow();
+                TrackInformationShow();
+                ParkingShow();
+                TurnningAngleShiftShow();
+            }
+            
             if (0xa5 == vehicle_update_status)
             {
                 vehicle_update_status = 0;
@@ -2207,8 +2724,12 @@ namespace APA_DebugAssistant
             {
                 m_Waveform.VehicleSpeedPointAdd(m_Vehicle.TargetVehicleSpeed, m_Vehicle.VehicleSpeed);
             }
-            ParkingDetectionDataLog();
-            PlanningInfDataLog();
+
+            //ParkingDetectionDataLog();
+            //ParkingDetectionDataLogOld();
+            //PlanningInfDataLog();
+            LocationMapInfDataLog();
+            UltrasonicPacketDataLog();
         }
 
         /// <summary>
@@ -2576,6 +3097,8 @@ namespace APA_DebugAssistant
         private void button18_Click(object sender, EventArgs e)
         {
             TrackDataShow.Points.Clear();
+            UltrasonicGroundDirectLocation.Points.Clear();
+            UltrasonicGroundTriangleLocation.Points.Clear();
         }
 
         /// <summary>
@@ -2805,11 +3328,14 @@ namespace APA_DebugAssistant
                 //给文件名前加上时间
                 newFileName = DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + textBox29.Text + "_Planning_" + fileNameExt;
                 PlanningDataSave = new StreamWriter(FilePath + "\\" + newFileName, true, Encoding.ASCII);
+                newFileName = DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + textBox29.Text + "_LocationMap_" + fileNameExt;
+                LocationMapDataSave = new StreamWriter(FilePath + "\\" + newFileName, true, Encoding.ASCII);
                 PlanningDataSaveStatus = true;
             }
             else
             {
                 PlanningDataSave.Close();
+                LocationMapDataSave.Close();
                 PlanningDataSaveStatus = false;
             }
             button33.Text = PlanningDataSaveStatus ? "取消保存" : "开始保存";
