@@ -83,12 +83,17 @@ namespace APA_DebugAssistant
         private byte vehicle_speed_valid;
         private double vehicle_speed;
         private double target_vehicle_speed;
+        // monitor distance
+        private double target_distance;
         // wheel pulse
         private byte wheel_speed_direction;
-        private byte wheel_speed_rear_right_pulse;
-        private byte wheel_speed_rear_left_pulse;
-        private byte wheel_speed_front_right_pulse;
-        private byte wheel_speed_front_left_pulse;
+        private UInt16 wheel_speed_rear_right_pulse;
+        private UInt16 wheel_speed_rear_left_pulse;
+        private UInt16 wheel_speed_front_right_pulse;
+        private UInt16 wheel_speed_front_left_pulse;
+
+        private Int32 wheel_speed_rear_left_pulse_sum;
+        private Int32 wheel_speed_rear_right_pulse_sum;
         //  SAS Steering angle
         private double steering_angle_actual;
         private UInt16 steering_angle_speed;
@@ -717,7 +722,23 @@ namespace APA_DebugAssistant
                 return target_vehicle_speed;
             }
         }
+        /// <summary>
+        /// distace
+        /// </summary>
+        ///      
+        public double TargetDistance
+        {
+            set
+            {
+                target_distance = value;
+            }
+            get
+            {
+                return target_distance;
+            }
+        }
         
+
         /// <summary>
         /// wheel speed pulse
         /// </summary>
@@ -733,7 +754,7 @@ namespace APA_DebugAssistant
                 return wheel_speed_direction;
             }
         }
-        public byte WheelSpeedRearRightPulse
+        public UInt16 WheelSpeedRearRightPulse
         {
             set
             {
@@ -744,7 +765,7 @@ namespace APA_DebugAssistant
                 return wheel_speed_rear_right_pulse;
             }
         }
-        public byte WheelSpeedRearLeftPulse
+        public UInt16 WheelSpeedRearLeftPulse
         {
             set
             {
@@ -755,7 +776,7 @@ namespace APA_DebugAssistant
                 return wheel_speed_rear_left_pulse;
             }
         }
-        public byte WheelSpeedFrontRightPulse
+        public UInt16 WheelSpeedFrontRightPulse
         {
             set
             {
@@ -766,7 +787,7 @@ namespace APA_DebugAssistant
                 return wheel_speed_front_right_pulse;
             }
         }
-        public byte WheelSpeedFrontLeftPulse
+        public UInt16 WheelSpeedFrontLeftPulse
         {
             set
             {
@@ -778,6 +799,29 @@ namespace APA_DebugAssistant
             }
         }
 
+        public Int32 WheelSpeedRearLeftPulseSum
+        {
+            set
+            {
+                wheel_speed_rear_left_pulse_sum = value;
+            }
+            get
+            {
+                return wheel_speed_rear_left_pulse_sum;
+            }
+        }
+
+        public Int32 WheelSpeedRearRightPulseSum
+        {
+            set
+            {
+                wheel_speed_rear_right_pulse_sum = value;
+            }
+            get
+            {
+                return wheel_speed_rear_right_pulse_sum;
+            }
+        }
         // ESP
         public bool ESPQDCACC
         {
