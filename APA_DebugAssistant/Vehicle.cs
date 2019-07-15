@@ -40,6 +40,7 @@ namespace APA_DebugAssistant
         /*****************长安车信息******************/
         //send messege
         private double target_acceleration_acc;
+        private double actual_acceleration_acc;
         private bool target_acceleration_enable;
 
         private double target_deceleration_aeb;
@@ -356,6 +357,19 @@ namespace APA_DebugAssistant
                 return target_acceleration_acc;
             }
         }
+        public double ActualAccelerationACC
+        {
+            set
+            {
+                actual_acceleration_acc = value;
+            }
+            get
+            {
+                return actual_acceleration_acc;
+            }
+        }
+        
+
         public bool TargetAccelerationEnable
         {
             set

@@ -16,6 +16,8 @@ namespace APA_DebugAssistant
         Series VehicleSpeedWaveTarget = new Series();
         Series VehicleSpeedWaveActual = new Series();
 
+
+
         public Waveform()
         {
             InitializeComponent();
@@ -41,6 +43,8 @@ namespace APA_DebugAssistant
             VehicleSpeedWaveActual.Color = Color.Red;
             VehicleSpeedWaveActual.IsVisibleInLegend = true;
             VehicleSpeedWaveActual.LegendText = "实际车速";
+
+
         }
 
         /// <summary>
