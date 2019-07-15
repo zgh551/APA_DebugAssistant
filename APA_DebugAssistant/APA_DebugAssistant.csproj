@@ -65,6 +65,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AccelarateForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AccelarateForm.Designer.cs">
+      <DependentUpon>AccelarateForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -89,6 +95,9 @@
       <DependentUpon>Waveform.cs</DependentUpon>
     </Compile>
     <Compile Include="ZLGCAN.cs" />
+    <EmbeddedResource Include="AccelarateForm.resx">
+      <DependentUpon>AccelarateForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>
     </EmbeddedResource>

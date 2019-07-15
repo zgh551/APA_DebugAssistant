@@ -21,7 +21,6 @@ namespace APA_DebugAssistant
         #region 全局变量
 
         #region 串口相关变量
-        SerialCom m_SerialCom = new SerialCom();
         UInt16 AckCnt;
         byte AckId;
         #endregion
@@ -61,6 +60,7 @@ namespace APA_DebugAssistant
 
         Waveform m_Waveform = new Waveform();
         MonitorForm m_MonitorForm = new MonitorForm();
+        AccelarateForm m_AccelarateForm = new AccelarateForm();
 
         Series UltrasonicDataShow = new Series();//超声显示
         Series UltrasonicVehicle  = new Series(); //超声车身
@@ -160,27 +160,10 @@ namespace APA_DebugAssistant
         StreamWriter ParkingDataSave;
         string u_FilePath, u_localFilePath, u_newFileName, u_fileNameExt;
         bool u_DataSaveStatus = false;
-
-        LocationPoint FrontParkingEdge;
-        LocationPoint RearParkingEdge;
-
-        LocationPoint ParkingCenter;//库位中心的新坐标 
-        FitLine left_fit_line;
-        FitLine right_fit_line;
-        FitLine center_fit_line;
-        bool FitLineShowFlag = false;
-
-        byte UltrasonicLocationStatus;
-        string[] u_location_status = new string[4] { "Ready","Push","Calculate","Finish"};
-        Byte FrontParkingPositionCnt;
-        Byte RearParkingPositionCnt;
-        Byte LeftParkingPositionCnt;
-        Byte RightParkingPositionCnt;
         #endregion
 
         #region 轨迹规划数据保存相关变量
         StreamWriter PlanningDataSave;
-        StreamWriter LocationMapDataSave;
         bool PlanningDataSaveStatus = false;
         #endregion
 
@@ -192,12 +175,31 @@ namespace APA_DebugAssistant
         #endregion
 
         #region UltrasonicObstacleLocation
-        StreamReader UltrasonicLocationData;
+        StreamReader UltrasonicLocationData;//注入数据的读取
+        StreamWriter LocationMapDataSave;//原始数据的采集存储
+        StreamWriter LocationResultDataSave;//定位结果保存
         string UltrasonicLocationLoadFilePath;
         Int32 UltrasonicLocationFileLineCount;
 
         byte LocationOpenFileFlag = 0;
         byte InjectionAckFlag = 0;
+
+        bool LocationDataSaveStatus = false;
+
+        LocationPoint FrontParkingEdge;
+        LocationPoint RearParkingEdge;
+        LocationPoint ParkingCenter;//库位中心的新坐标 
+        FitLine left_fit_line;
+        FitLine right_fit_line;
+        FitLine center_fit_line;
+        bool FitLineShowFlag = false;
+
+        byte UltrasonicLocationStatus;
+        string[] u_location_status = new string[4] { "Ready", "Push", "Calculate", "Finish" };
+        Byte FrontParkingPositionCnt;
+        Byte RearParkingPositionCnt;
+        Byte LeftParkingPositionCnt;
+        Byte RightParkingPositionCnt;
         #endregion
 
         #region 轨迹跟踪信息变量
@@ -273,293 +275,56 @@ namespace APA_DebugAssistant
         //System.Drawing.Bitmap newBitmap = null;
         #endregion
         #region 函数
-        #region 车辆参数配置函数(串口)
-        private void VehicleParameterConfigure()
+        #region PID设置(CAN)
+        private void PID_ParameterConfigureCAN()
         {
-            byte[] Data = new byte[32];//动态分配内存
+            uint id = 0x550;
+            byte len = 8;
+            byte[] dat = new byte[8];
             byte[] Data_Temp = new byte[8];//动态分配内存
-            byte CheckSum = 0;
-            //发送指令
-            if (serialPort1.IsOpen)
-            {
-                try
-                {
-                    Data[0] = 0xAA;//识别标志1
-                    Data[1] = 0x55;//识别标志2
-                    Data[2] = 0x1A;//数据标志
-                    Data[3] = 19;//数据长度
-                    Data[4] =(byte)(
-                          (Convert.ToByte(checkBox1.Checked) << 5)
-                        | (Convert.ToByte(checkBox2.Checked) << 4)
-                        | (Convert.ToByte(checkBox3.Checked) << 3)
-                        | (Convert.ToByte(checkBox4.Checked) << 2)
-                        | (Convert.ToByte(checkBox5.Checked) << 1)
-                        |  Convert.ToByte(checkBox5.Checked)     );//使能信号
-                    Data[5] = Convert.ToByte(comboBox3.SelectedIndex);// 挡位
+            Data_Temp = BitConverter.GetBytes(Convert.ToSingle(textBox6.Text));//P
+            dat[0] = Data_Temp[3];
+            dat[1] = Data_Temp[2];
+            dat[2] = Data_Temp[1];
+            dat[3] = Data_Temp[0];
+            Data_Temp = BitConverter.GetBytes(Convert.ToSingle(textBox7.Text));//I
+            dat[4] = Data_Temp[3];
+            dat[5] = Data_Temp[2];
+            dat[6] = Data_Temp[1];
+            dat[7] = Data_Temp[0];
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
 
-                    Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox3.Text) * 10));//发动机扭矩
-                    Data[6] = Data_Temp[0];
-                    Data[7] = Data_Temp[1];
+            id = 0x551;
+            len = 8;
+            dat = new byte[8];
+            Data_Temp = new byte[8];//动态分配内存
+            Data_Temp = BitConverter.GetBytes(Convert.ToSingle(textBox8.Text));//D
+            dat[0] = Data_Temp[3];
+            dat[1] = Data_Temp[2];
+            dat[2] = Data_Temp[1];
+            dat[3] = Data_Temp[0];
+            Data_Temp = BitConverter.GetBytes(Convert.ToSingle(textBox35.Text));//OUTPUT LIM
+            dat[4] = Data_Temp[3];
+            dat[5] = Data_Temp[2];
+            dat[6] = Data_Temp[1];
+            dat[7] = Data_Temp[0];
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
 
-                    Data_Temp = BitConverter.GetBytes( (Int16)(Convert.ToSingle(textBox4.Text) * 10));//转向角
-                    Data[8] = Data_Temp[0];
-                    Data[9] = Data_Temp[1];
-
-                    Data_Temp = BitConverter.GetBytes( (UInt16)(Convert.ToSingle(textBox5.Text) * 100));//转向角速度
-                    Data[10] = Data_Temp[0];
-                    Data[11] = Data_Temp[1];
-
-                    Data_Temp = BitConverter.GetBytes(Convert.ToSingle(textBox2.Text));//AEB
-                    Data[12] = Data_Temp[0];
-                    Data[13] = Data_Temp[1];
-                    Data[14] = Data_Temp[2];
-                    Data[15] = Data_Temp[3];
-
-                    Data_Temp = BitConverter.GetBytes(Convert.ToSingle(textBox1.Text));//ACC
-                    Data[16] = Data_Temp[0];
-                    Data[17] = Data_Temp[1];
-                    Data[18] = Data_Temp[2];
-                    Data[19] = Data_Temp[3];
-
-                    Data[20] = 0;
-                    Data[21] = 0;
-                    Data[22] = 0;
-
-                    CheckSum = 0;
-                    for (int i = 0; i < 23; i++)
-                    {
-                        CheckSum += Data[i];
-                    }
-                    Data[23] = CheckSum;
-                    serialPort1.Write(Data, 0, 24);
-                }
-                catch
-                {
-                    MessageBox.Show("数据类型错误，请检查所发数据类型", "错误提示");
-                }
-            }
-            else
-            {
-                MessageBox.Show("请打开串口", "提示");
-            }
-        }
-        #endregion
-
-        #region PID参数设置(串口)
-        private void PID_ParameterConfigure()
-        {
-            byte[] Data = new byte[32];//动态分配内存
-            byte[] Data_Temp = new byte[8];//动态分配内存
-            byte CheckSum = 0;
-            //发送指令
-            if (serialPort1.IsOpen)
-            {
-                try
-                {
-                    Data[0] = 0xAA;//识别标志1
-                    Data[1] = 0x55;//识别标志2
-                    Data[2] = 0x2A;//数据标志
-                    Data[3] = 19;//数据长度
-                    
-                    Kp = Convert.ToSingle(textBox6.Text);
-                    Data_Temp = BitConverter.GetBytes(Kp);//KP
-                    Data[4] = Data_Temp[0];
-                    Data[5] = Data_Temp[1];
-                    Data[6] = Data_Temp[2];
-                    Data[7] = Data_Temp[3];
-
-                    Ki = Convert.ToSingle(textBox7.Text);
-                    Data_Temp = BitConverter.GetBytes(Ki);//KI
-                    Data[8] = Data_Temp[0];
-                    Data[9] = Data_Temp[1];
-                    Data[10] = Data_Temp[2];
-                    Data[11] = Data_Temp[3];
-
-                    Kd = Convert.ToSingle(textBox8.Text);
-                    Data_Temp = BitConverter.GetBytes(Kd);//KD
-                    Data[12] = Data_Temp[0];
-                    Data[13] = Data_Temp[1];
-                    Data[14] = Data_Temp[2];
-                    Data[15] = Data_Temp[3];
-
-                    for (int i=16;i<23;i++)
-                    {
-                        Data[i] = 0;
-                    }
-
-                    CheckSum = 0;
-                    for (int i = 0; i < 23; i++)
-                    {
-                        CheckSum += Data[i];
-                    }
-                    Data[23] = CheckSum;
-                    serialPort1.Write(Data, 0, 24);
-                }
-                catch
-                {
-                    MessageBox.Show("数据类型错误，请检查所发数据类型", "错误提示");
-                }
-            }
-            else
-            {
-                MessageBox.Show("请打开串口", "提示");
-            }
-        }
-        #endregion
-
-        #region PID修正参数设置(串口)
-        private void PID_ReviseParameterConfigure()
-        {
-            byte[] Data = new byte[32];//动态分配内存
-            byte[] Data_Temp = new byte[8];//动态分配内存
-            byte CheckSum = 0;
-            //发送指令
-            if (serialPort1.IsOpen)
-            {
-                try
-                {
-                    Data[0] = 0xAA;//识别标志1
-                    Data[1] = 0x55;//识别标志2
-                    Data[2] = 0x2B;//数据标志
-                    Data[3] = 19;//数据长度
-
-                    Threshold = Convert.ToSingle(textBox11.Text);
-                    Data_Temp = BitConverter.GetBytes(Threshold);//OutputOffset
-                    Data[4] = Data_Temp[0];
-                    Data[5] = Data_Temp[1];
-                    Data[6] = Data_Temp[2];
-                    Data[7] = Data_Temp[3];
-
-                    //Ki = Convert.ToSingle(textBox7.Text);
-                    //Data_Temp = BitConverter.GetBytes(Ki);//KI
-                    //Data[8] = Data_Temp[0];
-                    //Data[9] = Data_Temp[1];
-                    //Data[10] = Data_Temp[2];
-                    //Data[11] = Data_Temp[3];
-
-                    //Kd = Convert.ToSingle(textBox8.Text);
-                    //Data_Temp = BitConverter.GetBytes(Kd);//KD
-                    //Data[12] = Data_Temp[0];
-                    //Data[13] = Data_Temp[1];
-                    //Data[14] = Data_Temp[2];
-                    //Data[15] = Data_Temp[3];
-
-
-                    //Data[16] = Data_Temp[0];
-                    //Data[17] = Data_Temp[1];
-                    //Data[18] = Data_Temp[2];
-                    //Data[19] = Data_Temp[3];
-
-                    for (int i = 8; i < 23; i++)
-                    {
-                        Data[i] = 0;
-                    }
-
-                    CheckSum = 0;
-                    for (int i = 0; i < 23; i++)
-                    {
-                        CheckSum += Data[i];
-                    }
-                    Data[23] = CheckSum;
-                    serialPort1.Write(Data, 0, 24);
-                }
-                catch
-                {
-                    MessageBox.Show("数据类型错误，请检查所发数据类型", "错误提示");
-                }
-            }
-            else
-            {
-                MessageBox.Show("请打开串口", "提示");
-            }
-        }
-        #endregion
-
-        #region 目标速度参数设置(串口)
-        private void TargetSpeedParameterConfigure()
-        {
-            byte[] Data = new byte[32];//动态分配内存
-            byte[] Data_Temp = new byte[8];//动态分配内存
-            byte CheckSum = 0;
-            //发送指令
-            if (serialPort1.IsOpen)
-            {
-                try
-                {
-                    Data[0] = 0xAA;//识别标志1
-                    Data[1] = 0x55;//识别标志2
-                    Data[2] = 0x3A;//数据标志
-                    Data[3] = 11;//数据长度
-
-                    setTargetVehicleSpeed = Convert.ToSingle(textBox9.Text);
-                    Data_Temp = BitConverter.GetBytes((float)setTargetVehicleSpeed);//目标速度值(m/s)                   
-                    Data[4] = Data_Temp[0];
-                    Data[5] = Data_Temp[1];
-                    Data[6] = Data_Temp[2];
-                    Data[7] = Data_Temp[3];
-
-                    for (int i = 8; i < 15; i++)
-                    {
-                        Data[i] = 0;
-                    }
-
-                    CheckSum = 0;
-                    for (int i = 0; i < 15; i++)
-                    {
-                        CheckSum += Data[i];
-                    }
-                    Data[15] = CheckSum;
-                    serialPort1.Write(Data, 0, 16);
-                }
-                catch
-                {
-                    MessageBox.Show("数据类型错误，请检查所发数据类型", "错误提示");
-                }
-            }
-            else
-            {
-                MessageBox.Show("请打开串口", "提示");
-            }
-        }
-        #endregion
-
-        #region 系统模式设定(串口)
-        private void SystemModuleConfigure()
-        {
-            byte[] Data = new byte[32];//动态分配内存
-            byte[] Data_Temp = new byte[8];//动态分配内存
-            byte CheckSum = 0;
-            //发送指令
-            if (serialPort1.IsOpen)
-            {
-                try
-                {
-                    Data[0] = 0xAA;//识别标志1
-                    Data[1] = 0x55;//识别标志2
-                    Data[2] = 0x4A;//数据标志
-                    Data[3] = 3;//数据长度
- 
-                    Data[4] = Convert.ToByte(comboBox4.SelectedIndex);
-                    Data[5] = Convert.ToByte(comboBox5.SelectedIndex);
-                    Data[6] = 0;
-
-                    CheckSum = 0;
-                    for (int i = 0; i < 7; i++)
-                    {
-                        CheckSum += Data[i];
-                    }
-                    Data[7] = CheckSum;
-                    serialPort1.Write(Data, 0, 8);
-                }
-                catch
-                {
-                    MessageBox.Show("数据类型错误，请检查所发数据类型", "错误提示");
-                }
-            }
-            else
-            {
-                MessageBox.Show("请打开串口", "提示");
-            }
+            id = 0x552;
+            len = 8;
+            dat = new byte[8];
+            Data_Temp = new byte[8];//动态分配内存
+            Data_Temp = BitConverter.GetBytes(Convert.ToSingle(textBox11.Text));//Threshold
+            dat[0] = Data_Temp[3];
+            dat[1] = Data_Temp[2];
+            dat[2] = Data_Temp[1];
+            dat[3] = Data_Temp[0];
+            Data_Temp = BitConverter.GetBytes(Convert.ToSingle(textBox34.Text));//I Lim
+            dat[4] = Data_Temp[3];
+            dat[5] = Data_Temp[2];
+            dat[6] = Data_Temp[1];
+            dat[7] = Data_Temp[0];
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
         }
         #endregion
 
@@ -882,64 +647,7 @@ namespace APA_DebugAssistant
         /// <summary>
         /// 用于长安车调试的接口控制函数
         /// </summary>
-        private void ChangAnInterfaceTest()
-        {
-            byte[] Data = new byte[32];//动态分配内存
-            byte[] Data_Temp = new byte[8];//动态分配内存
-            byte CheckSum = 0;
-            //发送指令
-            if (serialPort1.IsOpen)
-            {
-                try
-                {
-                    Data[0] = 0xAA;//识别标志1
-                    Data[1] = 0x55;//识别标志2
-                    Data[2] = 0x5A;//数据标志
-                    Data[3] = 11;//数据长度
-                    Data[4] = (byte)(
-                                      (Convert.ToByte(checkBox6.Checked) << 3)// Taget Speed 
-                                    | (Convert.ToByte(checkBox1.Checked) << 2)// ACC
-                                    | (Convert.ToByte(checkBox4.Checked) << 1)// Steering Angle
-                                    |  Convert.ToByte(checkBox5.Checked)      // Gear enable
-                                    );     
-                    Data[5] = Convert.ToByte(comboBox3.SelectedIndex);// 挡位
-
-                    Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox4.Text) * 10));//转向角
-                    Data[6] = Data_Temp[0];
-                    Data[7] = Data_Temp[1];
-
-                    Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox5.Text) * 100));//转向角速度
-                    Data[8] = Data_Temp[0];
-                    Data[9] = Data_Temp[1];
-
-                    Data_Temp = BitConverter.GetBytes(Convert.ToSingle(textBox1.Text));//ACC
-                    Data[10] = Data_Temp[0];
-                    Data[11] = Data_Temp[1];
-                    Data[12] = Data_Temp[2];
-                    Data[13] = Data_Temp[3];
-
-                    Data[14] = (byte)(Convert.ToSingle(textBox12.Text) * 100);// Target Speed
-
-                    CheckSum = 0;
-                    for (int i = 0; i < (Data[3] + 4); i++)
-                    {
-                        CheckSum += Data[i];
-                    }
-                    Data[Data[3] + 4] = CheckSum;
-                    serialPort1.Write(Data, 0, Data[3] + 5);
-                }
-                catch
-                {
-                    MessageBox.Show("数据类型错误，请检查所发数据类型", "错误提示");
-                }
-            }
-            else
-            {
-                MessageBox.Show("请打开串口", "提示");
-            }
-        }
-
-        private void ChangAnInterfaceCAN1()
+        private void ChangAnInterfaceCAN()
         {
             uint id = 0x516;
             byte len = 8;
@@ -974,14 +682,8 @@ namespace APA_DebugAssistant
             CheckSum ^= 0xFF;
             dat[7] = CheckSum;
             m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
-        }
-        private void ChangAnInterfaceCAN2()
-        {
-            uint id = 0x517;
-            byte len = 8;
-            byte CheckSum;
-            byte[] dat = new byte[8];
-            byte[] Data_Temp = new byte[8];//动态分配内存
+
+            id = 0x517;
 
             Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox1.Text) * 1000));//ACC加速度
             dat[0] = Data_Temp[0];
@@ -995,7 +697,7 @@ namespace APA_DebugAssistant
             dat[4] = Data_Temp[0];
             dat[5] = Data_Temp[1];
 
-            dat[6] = (byte)(Convert.ToSingle(textBox3.Text) * 2);// 扭矩
+            dat[6] = (byte)(Convert.ToSingle(textBox3.Text) * 0.5);// 扭矩
             CheckSum = 0;
             for (int i = 0; i < 7; i++)
             {
@@ -1079,6 +781,73 @@ namespace APA_DebugAssistant
             CheckSum ^= 0xFF;
             dat[7] = CheckSum;
 
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+        }
+        #endregion
+
+
+        #region 东风接口
+        /// <summary>
+        /// 用于东风车调试的接口控制函数
+        /// </summary>
+        private void DongFengInterfaceCAN()
+        {
+            uint id = 0x519;
+            byte len = 8;
+            byte CheckSum;
+            byte[] dat = new byte[8];
+            byte[] Data_Temp = new byte[8];//动态分配内存
+
+            Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox4.Text) * 10));//转向角
+            dat[0] = Data_Temp[0];
+            dat[1] = Data_Temp[1];
+
+            Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox5.Text) * 100));//转向角速度
+            dat[2] = Data_Temp[0];
+            dat[3] = Data_Temp[1];
+
+            Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox3.Text) * 1));//扭矩
+            dat[4] = Data_Temp[0];
+            dat[5] = Data_Temp[1];
+
+            dat[6] = (byte)(
+                              (Convert.ToByte(checkBox6.Checked) << 3)// Velocity 
+                            | (Convert.ToByte(checkBox3.Checked) << 5)// Torque 
+                            | (Convert.ToByte(checkBox2.Checked) << 4)// AEB 
+                            | (Convert.ToByte(checkBox1.Checked) << 2)// ACC
+                            | (Convert.ToByte(checkBox4.Checked) << 1)// Steering Angle
+                            |  Convert.ToByte(checkBox5.Checked)      // Gear enable
+                            );
+            CheckSum = 0;
+            for (int i = 0; i < 7; i++)
+            {
+                CheckSum += dat[i];
+            }
+            CheckSum ^= 0xFF;
+            dat[7] = CheckSum;
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+
+            id = 0x51A;
+            Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox1.Text) * 1000));//ACC加速度
+            dat[0] = Data_Temp[0];
+            dat[1] = Data_Temp[1];
+
+            Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox2.Text) * 1000));//AEB减速度
+            dat[2] = Data_Temp[0];
+            dat[3] = Data_Temp[1];
+
+            Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox12.Text) * 1000));//车辆速度
+            dat[4] = Data_Temp[0];
+            dat[5] = Data_Temp[1];
+
+            dat[6] = Convert.ToByte(comboBox3.SelectedIndex);// 挡位
+            CheckSum = 0;
+            for (int i = 0; i < 7; i++)
+            {
+                CheckSum += dat[i];
+            }
+            CheckSum ^= 0xFF;
+            dat[7] = CheckSum;
             m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
         }
         #endregion
@@ -1357,10 +1126,10 @@ namespace APA_DebugAssistant
                     }
                     tmp_dat[0] = m_packet.Data[2];
                     tmp_dat[1] = m_packet.Data[3];
-                    m_Vehicle.TargetAccelerationACC = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    m_Vehicle.ActualAccelerationACC = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
                     tmp_dat[0] = m_packet.Data[4];
                     tmp_dat[1] = m_packet.Data[5];
-                    m_Vehicle.TargetDecelerationAEB = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    m_Vehicle.Torque = BitConverter.ToUInt16(tmp_dat, 0);
                     tmp_dat[0] = m_packet.Data[6];
                     tmp_dat[1] = m_packet.Data[7];
                     m_Vehicle.TargetVehicleSpeed = BitConverter.ToUInt16(tmp_dat, 0) * 0.01;
@@ -1386,7 +1155,21 @@ namespace APA_DebugAssistant
                     tmp_dat[0] = m_packet.Data[0];
                     tmp_dat[1] = m_packet.Data[1];
                     m_Vehicle.TargetDistance = BitConverter.ToUInt16(tmp_dat, 0) * 0.001;
-                    
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    m_Vehicle.TargetAccelerationACC = BitConverter.ToInt16(tmp_dat, 0) * 0.001;
+                    break;
+
+                case 0x417:
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    m_Vehicle.LonAcc = BitConverter.ToInt16(tmp_dat, 0) * 0.001;
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    m_Vehicle.LatAcc = BitConverter.ToInt16(tmp_dat, 0) * 0.001;
+                    tmp_dat[0] = m_packet.Data[4];
+                    tmp_dat[1] = m_packet.Data[5];
+                    m_Vehicle.YawRate = BitConverter.ToInt16(tmp_dat, 0) * 0.01; 
                     break;
 
                 case 0x440://反馈的车辆初始中心点位置
@@ -1566,6 +1349,7 @@ namespace APA_DebugAssistant
                     LocationlistBox.Items.Add("库位中心拟合直线:");
                     LocationlistBox.Items.Add("A:" + Math.Tan(center_fit_line.Angle).ToString());
                     LocationlistBox.Items.Add("B:" + center_fit_line.Offset.ToString());
+                    LocationResultInfDatalog();
                     break;
 
                 case 0x44C:
@@ -1744,48 +1528,52 @@ namespace APA_DebugAssistant
         {
             try
             {
-                label4.Text = m_SerialCom.ErrCount.ToString();//帧错计数
 
-                label5.ForeColor = m_Vehicle.EPS_Failed ? Color.AliceBlue : Color.BlueViolet;
-                label6.ForeColor = m_Vehicle.ESPQDCACC ? Color.AliceBlue : Color.BlueViolet;
-                label7.ForeColor = m_Vehicle.EMSQECACC ? Color.AliceBlue : Color.BlueViolet;
+                //label5.ForeColor = m_Vehicle.EPS_Failed ? Color.AliceBlue : Color.BlueViolet;
+                //label6.ForeColor = m_Vehicle.ESPQDCACC ? Color.AliceBlue : Color.BlueViolet;
+                //label7.ForeColor = m_Vehicle.EMSQECACC ? Color.AliceBlue : Color.BlueViolet;
 
-                label52.ForeColor  = m_Vehicle.TargetAccelerationEnable ? Color.DarkGoldenrod : Color.AliceBlue;
-                label53.ForeColor  = m_Vehicle.TargetDecelerationEnable ? Color.DarkGoldenrod : Color.AliceBlue;
-                label54.ForeColor  = m_Vehicle.TorqueEnable             ? Color.DarkGoldenrod : Color.AliceBlue;
-                label55.ForeColor  = m_Vehicle.GearShiftEnable          ? Color.DarkGoldenrod : Color.AliceBlue;
-                label108.ForeColor = m_Vehicle.VelocityEnable           ? Color.DarkGoldenrod : Color.AliceBlue;
+                //label52.ForeColor  = m_Vehicle.TargetAccelerationEnable ? Color.DarkGoldenrod : Color.AliceBlue;
+                //label53.ForeColor  = m_Vehicle.TargetDecelerationEnable ? Color.DarkGoldenrod : Color.AliceBlue;
+                //label54.ForeColor  = m_Vehicle.TorqueEnable             ? Color.DarkGoldenrod : Color.AliceBlue;
+                //label55.ForeColor  = m_Vehicle.GearShiftEnable          ? Color.DarkGoldenrod : Color.AliceBlue;
+                //label108.ForeColor = m_Vehicle.VelocityEnable           ? Color.DarkGoldenrod : Color.AliceBlue;
 
-                label59.Text = SteeringAngleActiveStatus[m_Vehicle.SteeringAngleActive];
-                label60.Text = m_Vehicle.TargetAccelerationACC.ToString();
-                label61.Text = m_Vehicle.TargetDecelerationAEB.ToString();
+                //label59.Text = SteeringAngleActiveStatus[m_Vehicle.SteeringAngleActive];
+                label60.Text = m_Vehicle.ActualAccelerationACC.ToString();
+                //label61.Text = m_Vehicle.TargetDecelerationAEB.ToString();
                 label107.Text = m_Vehicle.Torque.ToString();
 
                 label11.Text = m_Vehicle.SteeringAngleActual.ToString();//转向角
-                label12.Text = m_Vehicle.SteeringAngleSpeed.ToString();//转向角速度
+                //label12.Text = m_Vehicle.SteeringAngleSpeed.ToString();//转向角速度
 
-                label20.Text = m_Vehicle.VehicleSpeed.ToString();//车身速度
-                label21.Text = m_Vehicle.WheelSpeedFrontLeftData.ToString();//左前轮速
-                label22.Text = m_Vehicle.WheelSpeedFrontRightData.ToString();//右前轮速
+                //label20.Text = m_Vehicle.VehicleSpeed.ToString();//车身速度
+                //label21.Text = m_Vehicle.WheelSpeedFrontLeftData.ToString();//左前轮速
+                //label22.Text = m_Vehicle.WheelSpeedFrontRightData.ToString();//右前轮速
                 label23.Text = m_Vehicle.WheelSpeedRearLeftData.ToString();//左后轮速
                 label24.Text = m_Vehicle.WheelSpeedRearRightData.ToString();//右后轮速
 
-                label36.Text = m_Vehicle.WheelSpeedFrontLeftPulse.ToString();//左前脉冲
-                label37.Text = m_Vehicle.WheelSpeedFrontRightPulse.ToString();//右前脉冲
+                //label36.Text = m_Vehicle.WheelSpeedFrontLeftPulse.ToString();//左前脉冲
+                //label37.Text = m_Vehicle.WheelSpeedFrontRightPulse.ToString();//右前脉冲
                 label38.Text = m_Vehicle.WheelSpeedRearLeftPulse.ToString();//左后脉冲
                 label39.Text = m_Vehicle.WheelSpeedRearRightPulse.ToString();//右后脉冲
 
-                label14.Text = m_Vehicle.WheelSpeedRearLeftPulseSum.ToString();//左后脉冲总数
-                label40.Text = m_Vehicle.WheelSpeedRearRightPulseSum.ToString();//右后脉冲总数
-                
-                if(WorkingModuleValue <= WorkingModule.Length)
-                {
-                    label50.Text = WorkingModule[WorkingModuleValue];
-                }
-                if(FunctionStatusValue <= FunctionStatus[WorkingModuleValue].Length)
-                {
-                    label51.Text = FunctionStatus[WorkingModuleValue][FunctionStatusValue];
-                }
+                //label14.Text = m_Vehicle.WheelSpeedRearLeftPulseSum.ToString();//左后脉冲总数
+                //label40.Text = m_Vehicle.WheelSpeedRearRightPulseSum.ToString();//右后脉冲总数
+
+                label176.Text = m_Vehicle.LonAcc.ToString("F3");//lon
+                label177.Text = m_Vehicle.LatAcc.ToString("F3");//lat
+                label178.Text = m_Vehicle.YawRate.ToString("F3");//yaw_rate
+
+
+                //if (WorkingModuleValue <= WorkingModule.Length)
+                //{
+                //    label50.Text = WorkingModule[WorkingModuleValue];
+                //}
+                //if(FunctionStatusValue <= FunctionStatus[WorkingModuleValue].Length)
+                //{
+                //    label51.Text = FunctionStatus[WorkingModuleValue][FunctionStatusValue];
+                //}
             }
             catch
             {
@@ -2009,8 +1797,6 @@ namespace APA_DebugAssistant
             label135.Text = "转向角:" + m_Vehicle.SteeringAngleActual.ToString("F1");
             label136.Text = "轮速:" + (0.5 * (m_Vehicle.WheelSpeedRearLeftData + m_Vehicle.WheelSpeedRearRightData)).ToString("F2");
         }
-        
-        
         private void UltrasonicLocationShow()
         {
             double x, y;
@@ -2098,8 +1884,6 @@ namespace APA_DebugAssistant
                 );
             }
         }
-
-        
         private void VelocityControlDataLog()
         {
             TestErrTime = timeGetTime() - TestLastTime;
@@ -2136,9 +1920,6 @@ namespace APA_DebugAssistant
             }
             TestLastTime = timeGetTime();
         }
-
-
-
         /// <summary>
         /// 检车位专用的数据保存
         /// </summary>
@@ -2325,7 +2106,7 @@ namespace APA_DebugAssistant
                                 "{0:D} " +
                                 "{1:R16} {2:D} {3:R16} {4:D} " +
                                 "{5:R16} {6:D} {7:R16} {8:D} " +
-                                "{9:R16}  {10:D} {11:R16} {12:D} " +
+                                "{9:R16} {10:D} {11:R16} {12:D} " +
                                 "{13:R16} {14:D} {15:R16} {16:D} " +
                                 "{17:R16} {18:R16} {19:R16} {20:R16} {21:D} " +
                                 "{22:R16} {23:R16} {24:R16} {25:R16} {26:D} " +
@@ -2387,6 +2168,7 @@ namespace APA_DebugAssistant
             }
             UltrasonicLastTime = timeGetTime();
         }
+        
         /// <summary>
         /// 库位信息保存
         /// </summary>
@@ -2451,7 +2233,6 @@ namespace APA_DebugAssistant
             }
         }
         
-
         private void PlanningInfDataLog()
         {
             PlanErrTime = timeGetTime() - PlanLastTime;
@@ -2495,7 +2276,7 @@ namespace APA_DebugAssistant
         {
             LocationMapErrTime = timeGetTime() - LocationMapLastTime;
             //数据保存
-            if (PlanningDataSaveStatus)
+            if (LocationDataSaveStatus)
             {
                 LocationMapDataSave.Write(
                                 "{0:D} " +
@@ -2584,6 +2365,16 @@ namespace APA_DebugAssistant
             LocationMapLastTime = timeGetTime();
         }
         
+        private void LocationResultInfDatalog()
+        {
+            if (LocationDataSaveStatus)
+            {
+                for(int i=0;i< LocationlistBox.Items.Count;i++)
+                {
+                    LocationResultDataSave.Write(LocationlistBox.Items[i].ToString());
+                }  
+            }
+        }
         #endregion
 
         #region utils math
@@ -2608,10 +2399,6 @@ namespace APA_DebugAssistant
             //newBitmap.SetPixel(2, 2, Color.Black);
             //newBitmap.SetPixel(2, 1, Color.Black);
             //pictureBox1.Image = newBitmap;
-
-            m_SerialCom.AddBaudRate(comboBox2);
-            serialPort1.Encoding = Encoding.GetEncoding("GB2312");
-            serialPort1.DataReceived += new SerialDataReceivedEventHandler(serialPort1_DataReceived);
 
             #region 超声波数据显示Chart
             ///超声波数据显示
@@ -2811,8 +2598,6 @@ namespace APA_DebugAssistant
         }
         private void Form1_Load(object sender, EventArgs e)
         {
-            m_SerialCom.SearchAndAddSerialToComboBox(serialPort1, comboBox1);
-
             label5.ForeColor = Color.AliceBlue;
             label6.ForeColor = Color.AliceBlue;
             label7.ForeColor = Color.AliceBlue;
@@ -2949,213 +2734,6 @@ namespace APA_DebugAssistant
         #endregion
 
         #region 串口操作事件
-        /// <summary>
-        /// 搜寻端口号
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void label1_Click(object sender, EventArgs e)
-        {
-            m_SerialCom.SearchAndAddSerialToComboBox(serialPort1, comboBox1);
-        }
-
-        /// <summary>
-        /// 打开关闭串口
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void button1_Click(object sender, EventArgs e)
-        {
-            m_SerialCom.OpenAndCloseSerial(serialPort1, button1, comboBox1.Text, Convert.ToInt32(comboBox2.Text));
-        }
-
-        /// <summary>
-        /// 控制参数发送
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void button2_Click(object sender, EventArgs e)
-        {
-            //VehicleControlCAN_BR1();
-            //VehicleControlCAN_BR2();
-            //VehicleParameterConfigure();
-        }
-
-        /// <summary>
-        /// PID参数设置
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void button3_Click(object sender, EventArgs e)
-        {
-            PID_ParameterConfigure();
-        }
-
-        /// <summary>
-        /// PID revise parameter
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void button8_Click(object sender, EventArgs e)
-        {
-            PID_ReviseParameterConfigure();
-        }
-
-        /// <summary>
-        /// 目标速度设置事件
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void button4_Click(object sender, EventArgs e)
-        {
-            TargetSpeedParameterConfigure();
-        }
-
-        /// <summary>
-        /// 长安对接测试
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void button10_Click(object sender, EventArgs e)
-        {
-            //ChangAnInterfaceCAN1();
-            //ChangAnInterfaceCAN2();
-
-            BoRuiInterfaceCAN1();
-        }
-
-        /// <summary>
-        /// 串口接收事件
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void serialPort1_DataReceived(object sender, SerialDataReceivedEventArgs e)
-        {
-            if (m_SerialCom.Closing) return;//如果正在关闭，忽略操作，直接返回，尽快的完成串口监听线程的一次循环  
-            try
-            {
-                m_SerialCom.Listening = true;//设置标记，说明我已经开始处理数据，一会儿要使用系统UI的。
-                int n = serialPort1.BytesToRead;//先记录下来，避免某种原因，人为的原因，操作几次之间时间长，缓存不一致  
-                byte[] data = new byte[n];
-                serialPort1.Read(data, 0, n);//读取缓冲数据 
-
-                //<协议解析>  
-                bool data_catched = false;//缓存记录数据是否捕获到  
-                                          //1.缓存数据  
-                m_SerialCom.Buffer.AddRange(data);
-                //2.完整性判断 
-                while (m_SerialCom.Buffer.Count >= 6)//至少要包含头（2字节）+命令（1字节）+ 长度（1字节）+ 数据（4字节）+ 校验（1字节）
-                {
-                    //2.1 查找数据头
-                    if (m_SerialCom.Buffer[0] == 0x7F && m_SerialCom.Buffer[1] == 0x80)
-                    {
-                        int len = m_SerialCom.Buffer[3];//数据长度  
-                        if (m_SerialCom.Buffer.Count < len + 5) break;
-                        byte checksum = 0;
-                        for (int i = 0; i < len + 4; i++)//len+3表示校验之前的位置  
-                        {
-                            checksum += m_SerialCom.Buffer[i];
-                        }
-                        if (checksum != m_SerialCom.Buffer[len + 4]) //如果数据校验失败，丢弃这一包数据  
-                        {
-                            m_SerialCom.Buffer.RemoveRange(0, len + 5);//从缓存中删除错误数据 
-                            m_SerialCom.ErrCount++;
-                            continue;//继续下一次循环  
-                        }
-                        //至此，已经被找到了一条完整数据。我们将数据直接分析，或是缓存起来一起分析  
-                        //我们这里采用的办法是缓存一次，好处就是如果你某种原因，数据堆积在缓存buffer中  
-                        //已经很多了，那你需要循环的找到最后一组，只分析最新数据，过往数据你已经处理不及时  
-                        //了，就不要浪费更多时间了，这也是考虑到系统负载能够降低。  
-                        m_SerialCom.Buffer.CopyTo(2, m_SerialCom.BinaryData, 0, len + 2);//复制一条完整数据到具体的数据缓存  
-                        data_catched = true;
-                        m_SerialCom.Buffer.RemoveRange(0, len + 5);//正确分析一条数据，从缓存中移除数据。  
-                    }
-                    else
-                    {
-                        //这里是很重要的，如果数据开始不是头，则删除数据  
-                        m_SerialCom.Buffer.RemoveAt(0);
-                    }
-                }//while结束
-                 //分析数据 
-
-                if (data_catched)
-                {
-                    //我们的数据都是定好格式的，所以当我们找到分析出的数据1，就知道固定位置一定是这些数据，我们只要显示就可以了  
-                    //progressBar1.Value = Convert.ToInt32(binary_data_1[4]);                 
-                    //x = BitConverter.ToSingle(binary_data_1, 3);//3,4,5,6
-                    //更新界面  
-                    this.Invoke((EventHandler)(delegate
-                    {
-                        switch(m_SerialCom.BinaryData[0])
-                        {
-                            case 0x85:
-                                m_Vehicle.EPS_Failed = Convert.ToBoolean(m_SerialCom.BinaryData[2] & 0x01);
-                                m_Vehicle.ESPQDCACC = Convert.ToBoolean((m_SerialCom.BinaryData[2] >> 1) & 0x01);
-                                m_Vehicle.EMSQECACC = Convert.ToBoolean((m_SerialCom.BinaryData[2] >> 2) & 0x01);
-
-                                m_Vehicle.TargetAccelerationEnable = Convert.ToBoolean( m_SerialCom.BinaryData[3]       & 0x01);
-                                m_Vehicle.TargetDecelerationEnable = Convert.ToBoolean((m_SerialCom.BinaryData[3] >> 1) & 0x01);
-                                m_Vehicle.TorqueEnable             = Convert.ToBoolean((m_SerialCom.BinaryData[3] >> 2) & 0x01);
-                                m_Vehicle.GearShiftEnable          = Convert.ToBoolean((m_SerialCom.BinaryData[3] >> 3) & 0x01);
-                                m_Vehicle.SteeringAngleActive      = Convert.ToByte((m_SerialCom.BinaryData[3] >> 4) & 0x03);
-
-                                m_Vehicle.SteeringAngleActual = BitConverter.ToInt16(m_SerialCom.BinaryData, 4);
-                                m_Vehicle.SteeringAngleSpeed = BitConverter.ToUInt16(m_SerialCom.BinaryData, 6);
-                                m_Vehicle.SteeringTorque = BitConverter.ToSingle(m_SerialCom.BinaryData, 8);
-                                m_Vehicle.TargetAccelerationACC = BitConverter.ToSingle(m_SerialCom.BinaryData, 12);
-                                m_Vehicle.Torque = BitConverter.ToUInt16(m_SerialCom.BinaryData, 16)*0.1;
-                                break;
-
-                            case 0x95:
-                                m_Vehicle.VehicleSpeed = (double)BitConverter.ToSingle(m_SerialCom.BinaryData, 2);
-
-                                m_Vehicle.WheelSpeedFrontLeftData = (double)(BitConverter.ToInt16(m_SerialCom.BinaryData, 6) * 0.1);
-                                m_Vehicle.WheelSpeedFrontRightData = (double)(BitConverter.ToInt16(m_SerialCom.BinaryData, 8) * 0.1);
-                                m_Vehicle.WheelSpeedRearLeftData = (double)(BitConverter.ToInt16(m_SerialCom.BinaryData, 10) * 0.1);
-                                m_Vehicle.WheelSpeedRearRightData = (double)(BitConverter.ToInt16(m_SerialCom.BinaryData, 12) * 0.1);
-
-                                m_Vehicle.WheelSpeedFrontLeftPulse = m_SerialCom.BinaryData[14];
-                                m_Vehicle.WheelSpeedFrontRightPulse = m_SerialCom.BinaryData[15];
-                                m_Vehicle.WheelSpeedRearLeftPulse = m_SerialCom.BinaryData[16];
-                                m_Vehicle.WheelSpeedRearRightPulse = m_SerialCom.BinaryData[17];
-                                m_Vehicle.WheelSpeedDirection = m_SerialCom.BinaryData[18];
-                                if (m_Waveform.Visible)
-                                {
-                                    m_Waveform.VehicleSpeedPointAdd(setTargetVehicleSpeed,m_Vehicle.VehicleSpeed);
-                                }
-                                break;
-
-                            case 0xA5:
-                                WorkingModuleValue = m_SerialCom.BinaryData[2];
-                                FunctionStatusValue = m_SerialCom.BinaryData[3];
-                                break;
-
-                            case 0x1A:
-                            case 0x2A:
-                            case 0x2B:
-                            case 0x3A:
-                            case 0x4A:
-                            case 0x5A:
-                                if (m_SerialCom.BinaryData[2] == 0x5A)
-                                {
-                                    AckId = m_SerialCom.BinaryData[0];
-                                    AckCnt = 0;
-                                    timer_ack.Enabled = true;
-                                }
-                                break;
-
-                            default:
-                                MessageBox.Show("异常ID", "提示");
-                                break;
-                        }
-                    }));
-                }
-            }
-            finally
-            {
-                m_SerialCom.Listening = false;//我用完了，ui可以关闭串口了。     
-            }// end try    
-        }
         #endregion
 
         #region CAN 操作相关事件
@@ -3206,7 +2784,29 @@ namespace APA_DebugAssistant
             m_ZLGCAN.OpenStatus = 0;
         }
 
+        /// <summary>
+        /// PID参数设置
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button3_Click(object sender, EventArgs e)
+        {
+            PID_ParameterConfigureCAN();
+        }
 
+        /// <summary>
+        /// 长安对接测试
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button10_Click(object sender, EventArgs e)
+        {
+            //ChangAnInterfaceCAN();
+
+            //BoRuiInterfaceCAN1();
+
+            DongFengInterfaceCAN();
+        }
         #endregion
 
         #region 定时器事件
@@ -3265,13 +2865,17 @@ namespace APA_DebugAssistant
             {
                 m_Waveform.VehicleSpeedPointAdd(m_Vehicle.TargetVehicleSpeed, m_Vehicle.VehicleSpeed);
             }
-
+            if(m_AccelarateForm.Visible)
+            {
+                m_AccelarateForm.VehicleAcceleratePointAdd(m_Vehicle.TargetAccelerationACC, m_Vehicle.ActualAccelerationACC, m_Vehicle.LonAcc);
+            }
             //ParkingDetectionDataLog();
             //ParkingDetectionDataLogOld();
             //PlanningInfDataLog();
             
             VelocityControlDataLog();
             LocationMapInfDataLog();
+
             UltrasonicPacketDataLog();
             BodyTriangleLocationDataLog();
         }
@@ -3390,7 +2994,7 @@ namespace APA_DebugAssistant
                 switch(AckId)
                 {
                     case 0x1A:// Vehicle Control
-                        button2.BackColor = Color.Green;
+                        //button2.BackColor = Color.Green;
                         break;
 
                     case 0x2A:// PID Parameter Configure
@@ -3402,7 +3006,7 @@ namespace APA_DebugAssistant
                         break;
 
                     case 0x3A:// Targte Vehicle Configure
-                        button4.BackColor = Color.Green;
+                        //button4.BackColor = Color.Green;
                         break;
 
                     case 0x4A:// Sysytem Working module Configure
@@ -3423,7 +3027,7 @@ namespace APA_DebugAssistant
                 switch (AckId)
                 {
                     case 0x1A:// Vehicle Control
-                        button2.BackColor = Color.Transparent;
+                        //button2.BackColor = Color.Transparent;
                         break;
 
                     case 0x2A:// PID Parameter Configure
@@ -3435,7 +3039,7 @@ namespace APA_DebugAssistant
                         break;
 
                     case 0x3A:// Targte Vehicle Configure
-                        button4.BackColor = Color.Transparent;
+                        //button4.BackColor = Color.Transparent;
                         break;
 
                     case 0x4A:// Sysytem Working module Configure
@@ -3458,21 +3062,39 @@ namespace APA_DebugAssistant
         #endregion
 
         #region 图形化显示
+
         private void button7_Click(object sender, EventArgs e)
         {
             if (m_Waveform.Visible)
             {
                 m_Waveform.Hide();
-                button7.Text = "波形图显示关闭";
+                button7.Text = "波形图显示开启";
             }
             else
             {
                 m_Waveform.Show();
-                button7.Text = "波形图显示开启";
+                button7.Text = "波形图显示关闭";
             }
         }
 
-
+        /// <summary>
+        /// 车辆ACC显示
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button8_Click(object sender, EventArgs e)
+        {
+            if (m_AccelarateForm.Visible)
+            {
+                m_AccelarateForm.Hide();
+                button8.Text = "加速度波形显示开启";
+            }
+            else
+            {
+                m_AccelarateForm.Show();
+                button8.Text = "加速度波形显示关闭";
+            }
+        }
         #endregion
 
         #region 数据保存
@@ -3570,8 +3192,6 @@ namespace APA_DebugAssistant
                 //给文件名前加上时间
                 u_newFileName = DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + textBox21.Text + "_Ultrasonic_" + u_fileNameExt;
                 ULtrasonicDataSave = new StreamWriter(u_FilePath + "\\" + u_newFileName, true, Encoding.ASCII);
-                //u_newFileName = DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + textBox21.Text + "_ParkingInf_" + u_fileNameExt;
-                //ParkingDataSave    = new StreamWriter(u_FilePath + "\\" + u_newFileName, true, Encoding.ASCII);
                 u_newFileName = DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + textBox21.Text + "_BodyTriangle_" + u_fileNameExt;
                 BodyTriangleDataSave = new StreamWriter(u_FilePath + "\\" + u_newFileName, true, Encoding.ASCII);
                 u_DataSaveStatus   = true;
@@ -3579,7 +3199,6 @@ namespace APA_DebugAssistant
             else
             {
                 ULtrasonicDataSave.Close();
-                //ParkingDataSave.Close();
                 BodyTriangleDataSave.Close();
                 u_DataSaveStatus = false;
             }
@@ -3594,32 +3213,22 @@ namespace APA_DebugAssistant
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void comboBox4_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            try
-            {
-                comboBox5.Items.Clear();
-                for (int i = 0; i < FunctionStatus[comboBox4.SelectedIndex].Length; i++)
-                {
-                    comboBox5.Items.Add(FunctionStatus[comboBox4.SelectedIndex][i]);
-                }
-                comboBox5.SelectedIndex = 0;
-            }
-            catch
-            {
-                MessageBox.Show("模式索引越界！");
-            }
-        }
-
-        /// <summary>
-        /// Configure the system Working State and function status
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void button9_Click(object sender, EventArgs e)
-        {
-            SystemModuleConfigure();
-        }
+        //private void comboBox4_SelectedIndexChanged(object sender, EventArgs e)
+        //{
+        //    try
+        //    {
+        //        comboBox5.Items.Clear();
+        //        for (int i = 0; i < FunctionStatus[comboBox4.SelectedIndex].Length; i++)
+        //        {
+        //            comboBox5.Items.Add(FunctionStatus[comboBox4.SelectedIndex][i]);
+        //        }
+        //        comboBox5.SelectedIndex = 0;
+        //    }
+        //    catch
+        //    {
+        //        MessageBox.Show("模式索引越界！");
+        //    }
+        //}
         #endregion
 
         #region 超声波数据注入
@@ -3817,6 +3426,59 @@ namespace APA_DebugAssistant
         }
 
         /// <summary>
+        /// 启动数据保存
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button45_Click(object sender, EventArgs e)
+        {
+            if (!LocationDataSaveStatus)
+            {
+                //给文件名前加上时间
+                newFileName = DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + textBox33.Text + "_Location_" + fileNameExt;
+                LocationMapDataSave = new StreamWriter(FilePath + "\\" + newFileName, true, Encoding.ASCII);
+                newFileName = DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + textBox33.Text + "_LocationResult_" + fileNameExt;
+                LocationResultDataSave = new StreamWriter(FilePath + "\\" + newFileName, true, Encoding.ASCII);
+                LocationDataSaveStatus = true;
+            }
+            else
+            {
+                LocationMapDataSave.Close();
+                LocationResultDataSave.Close();
+                LocationDataSaveStatus = false;
+            }
+            button45.Text       = LocationDataSaveStatus ? "取消保存" : "开始保存";
+            button45.BackColor  = LocationDataSaveStatus ? Color.Green : Color.Red;
+        }
+
+        /// <summary>
+        /// 保存路径选择
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button37_Click(object sender, EventArgs e)
+        {
+            saveFileDialog1.Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*";
+            saveFileDialog1.InitialDirectory = "D:\\APA\\NXP_DataSet";
+            saveFileDialog1.Title = "请选择要保存的文件路径";
+            saveFileDialog1.FilterIndex = 2;
+            saveFileDialog1.DefaultExt = "txt";
+            saveFileDialog1.FileName = "Data.txt";
+            saveFileDialog1.RestoreDirectory = true;
+            saveFileDialog1.AddExtension = true;
+            DialogResult dr = saveFileDialog1.ShowDialog();
+            if (dr == DialogResult.OK && saveFileDialog1.FileName.Length > 0)
+            {
+                //获得文件路径
+                localFilePath = saveFileDialog1.FileName.ToString();
+                //获取文件路径，不带文件名
+                FilePath = localFilePath.Substring(0, localFilePath.LastIndexOf("\\"));
+                //获取文件名，不带路径
+                fileNameExt = localFilePath.Substring(localFilePath.LastIndexOf("\\") + 1);
+            }
+        }
+
+        /// <summary>
         /// 控制命令：使能障碍物计算
         /// </summary>
         /// <param name="sender"></param>
@@ -3866,7 +3528,6 @@ namespace APA_DebugAssistant
             }
         }
         #endregion
-
 
         #region 规划状态显示控制
         /// <summary>
@@ -4108,14 +3769,11 @@ namespace APA_DebugAssistant
                 //给文件名前加上时间
                 newFileName = DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + textBox29.Text + "_Planning_" + fileNameExt;
                 PlanningDataSave = new StreamWriter(FilePath + "\\" + newFileName, true, Encoding.ASCII);
-                newFileName = DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + textBox29.Text + "_LocationMap_" + fileNameExt;
-                LocationMapDataSave = new StreamWriter(FilePath + "\\" + newFileName, true, Encoding.ASCII);
                 PlanningDataSaveStatus = true;
             }
             else
             {
                 PlanningDataSave.Close();
-                LocationMapDataSave.Close();
                 PlanningDataSaveStatus = false;
             }
             button33.Text = PlanningDataSaveStatus ? "取消保存" : "开始保存";
