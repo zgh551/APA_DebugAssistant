@@ -200,6 +200,18 @@ namespace APA_DebugAssistant
         Byte RearParkingPositionCnt;
         Byte LeftParkingPositionCnt;
         Byte RightParkingPositionCnt;
+
+        // 避障信息
+        public struct ObstacleDistancePacket
+        {
+            public Single Distance;
+            public byte region;
+            public byte status;
+        }
+
+        ObstacleDistancePacket FrontObstacle,RearObstacle;
+        string[] region_status = new string[3] { "左侧", "中间", "右侧"};
+        string[] valid_status = new string[5] { "正常", "盲区", "超探", "噪声", "无效" };
         #endregion
 
         #region 轨迹跟踪信息变量
@@ -785,7 +797,6 @@ namespace APA_DebugAssistant
         }
         #endregion
 
-
         #region 东风接口
         /// <summary>
         /// 用于东风车调试的接口控制函数
@@ -874,7 +885,7 @@ namespace APA_DebugAssistant
         private delegate void TerminalParse(ZLGCAN.VCI_CAN_OBJ m_packet);
         private void UltrasonicParse(ZLGCAN.VCI_CAN_OBJ m_packet)
         {
-            TerminalParse m_sampling = new TerminalParse(Parse);
+            TerminalParse m_sampling = new TerminalParse(MCU_Parse);
             this.Invoke(m_sampling, new object[] { m_packet });
         }
         /// <summary>
@@ -882,7 +893,7 @@ namespace APA_DebugAssistant
         /// </summary>
         /// <param name="m_packet"></param>
         /// <param name="m_vehicle"></param>
-        unsafe void Parse(ZLGCAN.VCI_CAN_OBJ m_packet)
+        unsafe void MCU_Parse(ZLGCAN.VCI_CAN_OBJ m_packet)
         {
             byte[] tmp_dat = new byte[4] { 0, 0, 0, 0 };
             byte[] dat = new byte[8];
@@ -1060,16 +1071,16 @@ namespace APA_DebugAssistant
                 case 0x411:
                     tmp_dat[0] = m_packet.Data[0];
                     tmp_dat[1] = m_packet.Data[1];
-                    m_Vehicle.WheelSpeedFrontLeftData  = BitConverter.ToUInt16(tmp_dat, 0) * 0.001;
+                    m_Vehicle.WheelSpeedFrontLeftData = BitConverter.ToUInt16(tmp_dat, 0) * 0.001;
                     tmp_dat[0] = m_packet.Data[2];
                     tmp_dat[1] = m_packet.Data[3];
                     m_Vehicle.WheelSpeedFrontRightData = BitConverter.ToUInt16(tmp_dat, 0) * 0.001;
                     tmp_dat[0] = m_packet.Data[4];
                     tmp_dat[1] = m_packet.Data[5];
-                    m_Vehicle.WheelSpeedRearLeftData   = BitConverter.ToUInt16(tmp_dat, 0) * 0.001;
+                    m_Vehicle.WheelSpeedRearLeftData = BitConverter.ToUInt16(tmp_dat, 0) * 0.001;
                     tmp_dat[0] = m_packet.Data[6];
                     tmp_dat[1] = m_packet.Data[7];
-                    m_Vehicle.WheelSpeedRearRightData  = BitConverter.ToUInt16(tmp_dat, 0) * 0.001;
+                    m_Vehicle.WheelSpeedRearRightData = BitConverter.ToUInt16(tmp_dat, 0) * 0.001;
                     break;
 
                 case 0x412:
@@ -1169,7 +1180,8 @@ namespace APA_DebugAssistant
                     m_Vehicle.LatAcc = BitConverter.ToInt16(tmp_dat, 0) * 0.001;
                     tmp_dat[0] = m_packet.Data[4];
                     tmp_dat[1] = m_packet.Data[5];
-                    m_Vehicle.YawRate = BitConverter.ToInt16(tmp_dat, 0) * 0.01; 
+                    m_Vehicle.YawRate = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    VelocityControlDataLog();
                     break;
 
                 case 0x440://反馈的车辆初始中心点位置
@@ -1214,9 +1226,9 @@ namespace APA_DebugAssistant
                     tmp_dat[0] = m_packet.Data[4];
                     tmp_dat[1] = m_packet.Data[5];
                     TrackPoint.Yaw = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
-                    tmp_dat[0] = m_packet.Data[6];
-                    tmp_dat[1] = m_packet.Data[7];
-                    ActualTurnRadius = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    //tmp_dat[0] = m_packet.Data[6];
+                    //tmp_dat[1] = m_packet.Data[7];
+                    //m_Vehicle.VehicleSpeed = BitConverter.ToUInt16(tmp_dat, 0) * 0.001;
                     track_update_status = 0xa5;
                     break;
 
@@ -1379,6 +1391,31 @@ namespace APA_DebugAssistant
                     CenterFitLine_DataShow.Points.Clear();
                     break;
 
+                case 0x44D:
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    FrontObstacle.Distance = BitConverter.ToUInt16(tmp_dat, 0) * 0.0001f;
+                    FrontObstacle.region   = m_packet.Data[2];
+                    FrontObstacle.status   = m_packet.Data[3];
+
+                    tmp_dat[0] = m_packet.Data[4];
+                    tmp_dat[1] = m_packet.Data[5];
+                    RearObstacle.Distance = BitConverter.ToUInt16(tmp_dat, 0) * 0.0001f;
+                    RearObstacle.region = m_packet.Data[6];
+                    RearObstacle.status = m_packet.Data[7];
+
+                    break;
+
+                case 0x44E:
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    m_Vehicle.PulseUpdateVelocity = BitConverter.ToUInt16(tmp_dat, 0) * 0.0001f;
+                    tmp_dat[0] = m_packet.Data[2];
+                    tmp_dat[1] = m_packet.Data[3];
+                    m_Vehicle.AccUpdateVelocity = BitConverter.ToUInt16(tmp_dat, 0) * 0.0001f;
+                     
+                    break;
+
                 default:
 
                     break;
@@ -1427,10 +1464,10 @@ namespace APA_DebugAssistant
                     m_Vehicle.WheelSpeedRearRightData = (UInt16)(((m_packet.Data[0] & 0x1F) << 8) | m_packet.Data[1]) * 0.015625;
                     m_Vehicle.WheelSpeedRearLeftData  = (UInt16)(((m_packet.Data[2] & 0x1F) << 8) | m_packet.Data[3]) * 0.015625;
 
-                    m_Vehicle.VehicleSpeed = (m_Vehicle.WheelSpeedRearRightData + m_Vehicle.WheelSpeedRearLeftData) * 0.5;
+                    //m_Vehicle.VehicleSpeed = (m_Vehicle.WheelSpeedRearRightData + m_Vehicle.WheelSpeedRearLeftData) * 0.5;
 
-                    m_Vehicle.VehicleSpeed = m_Vehicle.WheelSpeedDirection == 0 ?  m_Vehicle.VehicleSpeed :
-                                             m_Vehicle.WheelSpeedDirection == 1 ? -m_Vehicle.VehicleSpeed : 0;
+                    //m_Vehicle.VehicleSpeed = m_Vehicle.WheelSpeedDirection == 0 ?  m_Vehicle.VehicleSpeed :
+                    //                         m_Vehicle.WheelSpeedDirection == 1 ? -m_Vehicle.VehicleSpeed : 0;
                     break;
 
                 case 0x278:
@@ -1442,6 +1479,32 @@ namespace APA_DebugAssistant
                 case 0x180://SAS
                     //m_Vehicle.SteeringAngleActual = (double)(((Int16)((dat[0] << 8) | dat[1])) * 0.1);
                     m_Vehicle.SteeringAngleSpeed = (UInt16)(dat[2] * 4);
+                    break;
+
+                // 东风汽车的数据解码
+                case 0xA3://speed
+                    m_Vehicle.WheelSpeedRearLeftData   = (UInt16)(((m_packet.Data[4] & 0x7f) << 8) | m_packet.Data[5]) * 0.002778;
+                    m_Vehicle.WheelSpeedRearRightData  = (UInt16)(((m_packet.Data[6] & 0x7f) << 8) | m_packet.Data[7]) * 0.002778;
+                    break;
+
+                case 0xA6:
+                    m_Vehicle.LonAcc = (UInt16)(((m_packet.Data[5] & 0x07) << 8) | m_packet.Data[6]) * 0.03 - 15.36;
+                    break;
+
+                case 0x122:
+                    m_Vehicle.LatAcc  = (UInt16)(((m_packet.Data[0] & 0x0f) << 8) | m_packet.Data[1]) * 0.1 - 204.8;
+                    m_Vehicle.YawRate = (((m_packet.Data[2] & 0x07) << 8) | m_packet.Data[3]) * 0.03 - 15.36;
+                    break;
+
+                // 长安车标定数据采集
+                case 0x27B:
+                    m_Vehicle.LonAcc = ((UInt16)((m_packet.Data[3] << 2) | (m_packet.Data[4] >> 6))) * 0.03125 - 16;
+                    m_Vehicle.LatAcc = m_packet.Data[2] * 0.1f - 12.7f;
+                    m_Vehicle.YawRate = (((m_packet.Data[4] & 0x3f) << 8) | m_packet.Data[5]) * 0.01 - 81.91;
+                    break;
+                case 0x20B:// wheel speed
+                    m_Vehicle.WheelSpeedRearRightData = ((UInt16)(((m_packet.Data[0] & 0x1F) << 8) | m_packet.Data[1])) * 0.015625;
+                    m_Vehicle.WheelSpeedRearLeftData = ((UInt16)(((m_packet.Data[2] & 0x1F) << 8) | m_packet.Data[3])) * 0.015625;
                     break;
 
                 default:
@@ -1526,45 +1589,52 @@ namespace APA_DebugAssistant
         /// </summary>
         private void VehicleImformationShow()
         {
+            label5.Invoke((MethodInvoker)delegate () {
+                label5.ForeColor = m_Vehicle.EPS_Failed ? Color.AliceBlue : Color.BlueViolet;
+
+            });
             try
             {
+                this.Invoke((EventHandler)(delegate
+                {
+                    label5.ForeColor = m_Vehicle.EPS_Failed ? Color.AliceBlue : Color.BlueViolet;
+                    label6.ForeColor = m_Vehicle.ESPQDCACC ? Color.AliceBlue : Color.BlueViolet;
+                    label7.ForeColor = m_Vehicle.EMSQECACC ? Color.AliceBlue : Color.BlueViolet;
 
-                //label5.ForeColor = m_Vehicle.EPS_Failed ? Color.AliceBlue : Color.BlueViolet;
-                //label6.ForeColor = m_Vehicle.ESPQDCACC ? Color.AliceBlue : Color.BlueViolet;
-                //label7.ForeColor = m_Vehicle.EMSQECACC ? Color.AliceBlue : Color.BlueViolet;
+                    label52.ForeColor = m_Vehicle.TargetAccelerationEnable ? Color.DarkGoldenrod : Color.AliceBlue;
+                    label53.ForeColor = m_Vehicle.TargetDecelerationEnable ? Color.DarkGoldenrod : Color.AliceBlue;
+                    label54.ForeColor = m_Vehicle.TorqueEnable ? Color.DarkGoldenrod : Color.AliceBlue;
+                    label55.ForeColor = m_Vehicle.GearShiftEnable ? Color.DarkGoldenrod : Color.AliceBlue;
+                    label108.ForeColor = m_Vehicle.VelocityEnable ? Color.DarkGoldenrod : Color.AliceBlue;
 
-                //label52.ForeColor  = m_Vehicle.TargetAccelerationEnable ? Color.DarkGoldenrod : Color.AliceBlue;
-                //label53.ForeColor  = m_Vehicle.TargetDecelerationEnable ? Color.DarkGoldenrod : Color.AliceBlue;
-                //label54.ForeColor  = m_Vehicle.TorqueEnable             ? Color.DarkGoldenrod : Color.AliceBlue;
-                //label55.ForeColor  = m_Vehicle.GearShiftEnable          ? Color.DarkGoldenrod : Color.AliceBlue;
-                //label108.ForeColor = m_Vehicle.VelocityEnable           ? Color.DarkGoldenrod : Color.AliceBlue;
+                    //label59.Text = SteeringAngleActiveStatus[m_Vehicle.SteeringAngleActive];
+                    label60.Text = m_Vehicle.ActualAccelerationACC.ToString();
+                    //label61.Text = m_Vehicle.TargetDecelerationAEB.ToString();
+                    label107.Text = m_Vehicle.Torque.ToString();
 
-                //label59.Text = SteeringAngleActiveStatus[m_Vehicle.SteeringAngleActive];
-                label60.Text = m_Vehicle.ActualAccelerationACC.ToString();
-                //label61.Text = m_Vehicle.TargetDecelerationAEB.ToString();
-                label107.Text = m_Vehicle.Torque.ToString();
+                    label11.Text = m_Vehicle.SteeringAngleActual.ToString();//转向角
+                    label12.Text = m_Vehicle.SteeringAngleSpeed.ToString();//转向角速度
 
-                label11.Text = m_Vehicle.SteeringAngleActual.ToString();//转向角
-                //label12.Text = m_Vehicle.SteeringAngleSpeed.ToString();//转向角速度
+                    label20.Text = m_Vehicle.VehicleSpeed.ToString("F3");//车身速度
 
-                //label20.Text = m_Vehicle.VehicleSpeed.ToString();//车身速度
-                //label21.Text = m_Vehicle.WheelSpeedFrontLeftData.ToString();//左前轮速
-                //label22.Text = m_Vehicle.WheelSpeedFrontRightData.ToString();//右前轮速
-                label23.Text = m_Vehicle.WheelSpeedRearLeftData.ToString();//左后轮速
-                label24.Text = m_Vehicle.WheelSpeedRearRightData.ToString();//右后轮速
+                    label21.Text = m_Vehicle.PulseUpdateVelocity.ToString("F3");//脉冲更新的速度
+                    label22.Text = m_Vehicle.AccUpdateVelocity.ToString("F3");//基于加速度拟合的速度
 
-                //label36.Text = m_Vehicle.WheelSpeedFrontLeftPulse.ToString();//左前脉冲
-                //label37.Text = m_Vehicle.WheelSpeedFrontRightPulse.ToString();//右前脉冲
-                label38.Text = m_Vehicle.WheelSpeedRearLeftPulse.ToString();//左后脉冲
-                label39.Text = m_Vehicle.WheelSpeedRearRightPulse.ToString();//右后脉冲
+                    label23.Text = m_Vehicle.WheelSpeedRearLeftData.ToString("F3");//左后轮速
+                    label24.Text = m_Vehicle.WheelSpeedRearRightData.ToString("F3");//右后轮速
 
-                //label14.Text = m_Vehicle.WheelSpeedRearLeftPulseSum.ToString();//左后脉冲总数
-                //label40.Text = m_Vehicle.WheelSpeedRearRightPulseSum.ToString();//右后脉冲总数
+                    label36.Text = m_Vehicle.WheelSpeedFrontLeftPulse.ToString("F3");//左前脉冲
+                    label37.Text = m_Vehicle.WheelSpeedFrontRightPulse.ToString("F3");//右前脉冲
+                    label38.Text = m_Vehicle.WheelSpeedRearLeftPulse.ToString("F3");//左后脉冲
+                    label39.Text = m_Vehicle.WheelSpeedRearRightPulse.ToString("F3");//右后脉冲
 
-                label176.Text = m_Vehicle.LonAcc.ToString("F3");//lon
-                label177.Text = m_Vehicle.LatAcc.ToString("F3");//lat
-                label178.Text = m_Vehicle.YawRate.ToString("F3");//yaw_rate
+                    label14.Text = m_Vehicle.WheelSpeedRearLeftPulseSum.ToString();//左后脉冲总数
+                    label40.Text = m_Vehicle.WheelSpeedRearRightPulseSum.ToString();//右后脉冲总数
 
+                    label176.Text = m_Vehicle.LonAcc.ToString("F3");//lon
+                    label177.Text = m_Vehicle.LatAcc.ToString("F3");//lat
+                    label178.Text = m_Vehicle.YawRate.ToString("F3");//yaw_rate
+                }));
 
                 //if (WorkingModuleValue <= WorkingModule.Length)
                 //{
@@ -1586,57 +1656,62 @@ namespace APA_DebugAssistant
         /// </summary>
         private void UltrasonicImformationShow()
         {
-            for(int i =0;i<8;i++ )
+            this.Invoke((EventHandler)(delegate
             {
+                for (int i = 0; i < 8; i++)
+                {
+                    if (1 == UltrasonicDataType)
+                    {
+                        m_Ultrasonic.DataMapping2Control_STP318(m_LIN_STP318_ReadData[i], ref SensingControl_SRU[i]);
+                    }
+                    else if (2 == UltrasonicDataType)
+                    {
+                        m_Ultrasonic.DataMapping2Control_STP318Packet(m_Ultrasonic_Data_Packet[i], ref SensingControl_SRU[i]);
+                    }
+                }
+                for (int i = 0; i < 12; i++)
+                {
+                    if (1 == UltrasonicDataType)
+                    {
+                        m_Ultrasonic.DataMapping2Control_STP318(m_LIN_STP318_Location_ReadData[i], ref SensingLocation_SRU[i / 3][i % 3]);
+                    }
+                    else if (2 == UltrasonicDataType)
+                    {
+                        m_Ultrasonic.DataMapping2Control_STP318Packet(m_Ultrasonic_Location_Data_Packet[i], ref SensingLocation_SRU[i / 3][i % 3]);
+                    }
+                }
+
                 if (1 == UltrasonicDataType)
                 {
-                    m_Ultrasonic.DataMapping2Control_STP318(m_LIN_STP318_ReadData[i], ref SensingControl_SRU[i]);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        m_Ultrasonic.DataMapping2Control_STP313(m_LIN_STP313_ReadData[i], ref SensingControl_LRU[i]);
+                    }
                 }
                 else if (2 == UltrasonicDataType)
                 {
-                    m_Ultrasonic.DataMapping2Control_STP318Packet(m_Ultrasonic_Data_Packet[i], ref SensingControl_SRU[i]);
+                    for (int i = 8; i < 12; i++)
+                    {
+                        m_Ultrasonic.DataMapping2Control_STP313Packet(m_Ultrasonic_Data_Packet[i], ref SensingControl_LRU[i - 8]);
+                    }
                 }
-                    
-            }
-            for (int i = 0; i < 12; i++)
-            {
-                if(1 == UltrasonicDataType)
-                {
-                    m_Ultrasonic.DataMapping2Control_STP318(m_LIN_STP318_Location_ReadData[i], ref SensingLocation_SRU[i/3][i%3]);
-                }
-                else if (2 == UltrasonicDataType)
-                {
-                    m_Ultrasonic.DataMapping2Control_STP318Packet(m_Ultrasonic_Location_Data_Packet[i], ref SensingLocation_SRU[i / 3][i % 3]);
-                }
-            }
-            
-            if (1 == UltrasonicDataType)
-            {
-                for (int i = 0; i < 4; i++)
-                {
-                    m_Ultrasonic.DataMapping2Control_STP313(m_LIN_STP313_ReadData[i], ref SensingControl_LRU[i]);
-                }
-            }
-            else if (2 == UltrasonicDataType)
-            {
-                for (int i = 8; i < 12; i++)
-                {
-                    m_Ultrasonic.DataMapping2Control_STP313Packet(m_Ultrasonic_Data_Packet[i], ref SensingControl_LRU[i - 8]);
-                }
-            }
+            }));
         }
 
         private void UltrasonicImformationFormShow()
         {
-            if (checkBox8.Checked)
+            this.Invoke((EventHandler)(delegate
             {
-                //UltrasonicDataShow.Points.AddY(m_Ultrasonic_Data_Packet[9].Distance1*100);
-                UltrasonicDataShow.Points.AddY(m_LIN_STP313_ReadData[1].TOF1 / 58);
-                while (UltrasonicDataShow.Points.Count > 500)
+                if (checkBox8.Checked)
                 {
-                    UltrasonicDataShow.Points.RemoveAt(0);
+                    //UltrasonicDataShow.Points.AddY(m_Ultrasonic_Data_Packet[9].Distance1*100);
+                    UltrasonicDataShow.Points.AddY(m_LIN_STP313_ReadData[1].TOF1 / 58);
+                    while (UltrasonicDataShow.Points.Count > 500)
+                    {
+                        UltrasonicDataShow.Points.RemoveAt(0);
+                    }
                 }
-            }
+            }));
         }
 
         /// <summary>
@@ -1644,14 +1719,17 @@ namespace APA_DebugAssistant
         /// </summary>
         private void UltrasonicLocationFormShow()
         {
-            UltrasonicBodyTriangleLocation.Points.Clear();
-            for (int i=0;i<8;i++)
+            this.Invoke((EventHandler)(delegate
             {
-                if(UltrasonicStatus.Normal == m_BodyTriangleLocation[i].state)
+                UltrasonicBodyTriangleLocation.Points.Clear();
+                for (int i = 0; i < 8; i++)
                 {
-                    UltrasonicBodyTriangleLocation.Points.AddXY(m_BodyTriangleLocation[i].x, m_BodyTriangleLocation[i].y);
+                    if (UltrasonicStatus.Normal == m_BodyTriangleLocation[i].state)
+                    {
+                        UltrasonicBodyTriangleLocation.Points.AddXY(m_BodyTriangleLocation[i].x, m_BodyTriangleLocation[i].y);
+                    }
                 }
-            }
+            }));
         }
 
         /// <summary>
@@ -1659,14 +1737,17 @@ namespace APA_DebugAssistant
         /// </summary>
         private void UltrasonicLocationDirectFormShow()
         {
-            UltrasonicBodyDirectLocation.Points.Clear();
-            for (int i = 8; i < 12; i++)
+            this.Invoke((EventHandler)(delegate
             {
-                if (UltrasonicStatus.Normal == m_BodyDirectLocation[i].state)
+                UltrasonicBodyDirectLocation.Points.Clear();
+                for (int i = 8; i < 12; i++)
                 {
-                    UltrasonicBodyDirectLocation.Points.AddXY(m_BodyDirectLocation[i].x, m_BodyDirectLocation[i].y);
+                    if (UltrasonicStatus.Normal == m_BodyDirectLocation[i].state)
+                    {
+                        UltrasonicBodyDirectLocation.Points.AddXY(m_BodyDirectLocation[i].x, m_BodyDirectLocation[i].y);
+                    }
                 }
-            }
+            }));
         }
 
         /// <summary>
@@ -1674,13 +1755,16 @@ namespace APA_DebugAssistant
         /// </summary>
         private void UltrasonicGroundLocationTriangleFormShow()
         {
-            for (int i = 0; i < 8; i++)
+            this.Invoke((EventHandler)(delegate
             {
-                if(UltrasonicStatus.Normal == m_GroundTriangleLocation[i].state)
+                for (int i = 0; i < 8; i++)
                 {
-                    UltrasonicGroundTriangleLocation.Points.AddXY(m_GroundTriangleLocation[i].x, m_GroundTriangleLocation[i].y);
-                }               
-            }
+                    if (UltrasonicStatus.Normal == m_GroundTriangleLocation[i].state)
+                    {
+                        UltrasonicGroundTriangleLocation.Points.AddXY(m_GroundTriangleLocation[i].x, m_GroundTriangleLocation[i].y);
+                    }
+                }
+            }));
         }
 
         /// <summary>
@@ -1688,13 +1772,16 @@ namespace APA_DebugAssistant
         /// </summary>
         private void UltrasonicGroundLocationDirectFormShow()
         {
-            for (int i = 8; i < 12; i++)
+            this.Invoke((EventHandler)(delegate
             {
-                if (UltrasonicStatus.Normal == m_GroundDirectLocation[i].state)
+                for (int i = 8; i < 12; i++)
                 {
-                    UltrasonicGroundDirectLocation.Points.AddXY(m_GroundDirectLocation[i].x, m_GroundDirectLocation[i].y);
+                    if (UltrasonicStatus.Normal == m_GroundDirectLocation[i].state)
+                    {
+                        UltrasonicGroundDirectLocation.Points.AddXY(m_GroundDirectLocation[i].x, m_GroundDirectLocation[i].y);
+                    }
                 }
-            }
+            }));
         }
         /// <summary>
         /// 跟踪轨迹显示
@@ -1707,8 +1794,8 @@ namespace APA_DebugAssistant
                 label120.Text = TrackPoint.Position.X.ToString();
                 label121.Text = TrackPoint.Position.Y.ToString();
                 label122.Text = TrackPoint.Yaw.ToString();
-                //label146.Text = ActualTurnRadius.ToString();
-                label146.Text = m_Vehicle.TargetDistance.ToString();
+                //label146.Text = m_Vehicle.VehicleSpeed.ToString();
+                //label146.Text = m_Vehicle.TargetDistance.ToString();
 
                 if ((0 != TrackPoint.Position.X) && ( 0 != TrackPoint.Position.Y))
                 {
@@ -1808,11 +1895,22 @@ namespace APA_DebugAssistant
             {
                 label26.Text = u_location_status[UltrasonicLocationStatus];
             }
+            // 超声数据推送
             label27.Text = FrontParkingPositionCnt.ToString();
             label28.Text = RearParkingPositionCnt.ToString();
             label170.Text = LeftParkingPositionCnt.ToString();
             label172.Text = RightParkingPositionCnt.ToString();
-            if(FitLineShowFlag)
+
+            // 障碍物距离避障信息
+            label1.Text = FrontObstacle.Distance.ToString();
+            label3.Text = region_status[FrontObstacle.region];
+            label4.Text = valid_status[FrontObstacle.status];
+
+            label2.Text = RearObstacle.Distance.ToString();
+            label43.Text = region_status[RearObstacle.region];
+            label50.Text = valid_status[RearObstacle.status];
+
+            if (FitLineShowFlag)
             {
                 if (checkBox13.Checked)
                 {
@@ -1891,31 +1989,24 @@ namespace APA_DebugAssistant
             if (DataSaveStatus)
             {
                 DataSave.Write( "{0:D} " +
-                                "{1:R} {2:R} {3:R} " +
-                                "{4:R} {5:R} {6:D} {7:R} " +
-                                "{8:R} {9:R} {10:R} {11:R} " +
-                                "{12:D} {13:D} {14:D} {15:D} {16:D} " +
+                                "{1:R} {2:R} " +
+                                "{3:D} {4:D} " +
+                                "{5:R} " +
+                                "{6:R} {7:R} {8:R} " +
                                 "\r\n",
                                 TestErrTime,
-                                m_Vehicle.TargetVehicleSpeed,
-                                m_Vehicle.VehicleSpeed,
-                                m_Vehicle.TargetAccelerationACC,
-                                /// Steering Angle 
-                                m_Vehicle.SteeringAngleTarget,
-                                m_Vehicle.SteeringAngleActual,
-                                m_Vehicle.SteeringAngleSpeed,
-                                m_Vehicle.SteeringTorque,
                                 /// WheelSpeed
-                                m_Vehicle.WheelSpeedFrontLeftData,
-                                m_Vehicle.WheelSpeedFrontRightData,
                                 m_Vehicle.WheelSpeedRearLeftData,
                                 m_Vehicle.WheelSpeedRearRightData,
-                                /// WheelSpeedPulse
-                                m_Vehicle.WheelSpeedFrontLeftPulse,
-                                m_Vehicle.WheelSpeedFrontRightPulse,
+                                // wheel pulse 
                                 m_Vehicle.WheelSpeedRearLeftPulse,
                                 m_Vehicle.WheelSpeedRearRightPulse,
-                                m_Vehicle.WheelSpeedDirection
+                                // middle speed
+                                m_Vehicle.VehicleSpeed,
+                                // lon acc
+                                m_Vehicle.LonAcc,
+                                m_Vehicle.LatAcc,
+                                m_Vehicle.YawRate
                 );
             }
             TestLastTime = timeGetTime();
@@ -2590,11 +2681,18 @@ namespace APA_DebugAssistant
             RightFitLine_DataShow.LegendText = "右边线";
             #endregion
             // add the thread of the can receive
-            ThreadStart CANTreadChild = new ThreadStart(CallToCANReceiveThread);
-            Thread m_CanReceiveChildThread = new Thread(CANTreadChild);
-            m_CanReceiveChildThread.Priority = ThreadPriority.Normal;
-            m_CanReceiveChildThread.IsBackground = true;
-            m_CanReceiveChildThread.Start();
+            //ThreadStart CANTreadChild = new ThreadStart(CallToCANReceiveThread);
+            //Thread m_CanReceiveChildThread = new Thread(CANTreadChild);
+            //m_CanReceiveChildThread.Priority = ThreadPriority.Normal;
+            //m_CanReceiveChildThread.IsBackground = true;
+            //m_CanReceiveChildThread.Start();
+
+            // add the thread of the winform show
+            //ThreadStart FormShowTreadChild = new ThreadStart(FormShowThread);
+            //Thread m_FormShowChildThread = new Thread(FormShowTreadChild);
+            //m_FormShowChildThread.Priority = ThreadPriority.Normal;
+            //m_FormShowChildThread.IsBackground = true;
+            //m_FormShowChildThread.Start();
         }
         private void Form1_Load(object sender, EventArgs e)
         {
@@ -2717,18 +2815,18 @@ namespace APA_DebugAssistant
                     {
                         UltrasonicParse(obj[i]);
                     }
-                    m_ZLGCAN.CAN_Receive(VehicleReceiveCAN, ref obj);
-                    for (int i = 0; i < obj.Length-1; i++)
-                    {
-                        VehicleParse(obj[i]);
-                    }
-                    m_ZLGCAN.CAN_Receive(VehicleSendCAN, ref obj);
-                    for (int i = 0; i < obj.Length-1; i++)
-                    {
-                        VehicleSendParse(obj[i]);
-                    }
+                    //m_ZLGCAN.CAN_Receive(VehicleReceiveCAN, ref obj);
+                    //for (int i = 0; i < obj.Length-1; i++)
+                    //{
+                    //    VehicleParse(obj[i]);
+                    //}
+                    //m_ZLGCAN.CAN_Receive(VehicleSendCAN, ref obj);
+                    //for (int i = 0; i < obj.Length-1; i++)
+                    //{
+                    //    VehicleSendParse(obj[i]);
+                    //}
                 }
-                Thread.Sleep(10);
+                //Thread.Sleep(50);
             }
         }
         #endregion
@@ -2803,15 +2901,34 @@ namespace APA_DebugAssistant
         {
             //ChangAnInterfaceCAN();
 
-            //BoRuiInterfaceCAN1();
+            BoRuiInterfaceCAN1();
 
-            DongFengInterfaceCAN();
+            //DongFengInterfaceCAN();
         }
         #endregion
 
         #region 定时器事件
         private void timer_show_Tick(object sender, EventArgs e)
         {
+            if (m_ZLGCAN.OpenStatus == 1)
+            {
+                ZLGCAN.VCI_CAN_OBJ[] obj = new ZLGCAN.VCI_CAN_OBJ[1];
+                m_ZLGCAN.CAN_Receive(TerminalCAN, ref obj);
+                for (int i = 0; i < obj.Length - 1; i++)
+                {
+                    UltrasonicParse(obj[i]);
+                }
+                //m_ZLGCAN.CAN_Receive(VehicleReceiveCAN, ref obj);
+                //for (int i = 0; i < obj.Length-1; i++)
+                //{
+                //    VehicleParse(obj[i]);
+                //}
+                //m_ZLGCAN.CAN_Receive(VehicleSendCAN, ref obj);
+                //for (int i = 0; i < obj.Length-1; i++)
+                //{
+                //    VehicleSendParse(obj[i]);
+                //}
+            }
             if (0 == tabControl1.SelectedIndex)
             {
                 VehicleImformationShow();
@@ -2872,7 +2989,7 @@ namespace APA_DebugAssistant
             //ParkingDetectionDataLog();
             //ParkingDetectionDataLogOld();
             //PlanningInfDataLog();
-            
+
             VelocityControlDataLog();
             LocationMapInfDataLog();
 
@@ -2989,9 +3106,9 @@ namespace APA_DebugAssistant
         /// <param name="e"></param>
         private void timer_ack_Tick(object sender, EventArgs e)
         {
-            if(AckCnt == 0)
+            if (AckCnt == 0)
             {
-                switch(AckId)
+                switch (AckId)
                 {
                     case 0x1A:// Vehicle Control
                         //button2.BackColor = Color.Green;
@@ -3022,7 +3139,7 @@ namespace APA_DebugAssistant
                         break;
                 }
             }
-            else if(AckCnt >= 5)
+            else if (AckCnt >= 5)
             {
                 switch (AckId)
                 {
@@ -3056,7 +3173,7 @@ namespace APA_DebugAssistant
                 }
                 timer_ack.Enabled = false;
             }
-            AckCnt++;  
+            AckCnt++;
         }
 
         #endregion
@@ -3392,8 +3509,6 @@ namespace APA_DebugAssistant
             RightFitLine_DataShow.Points.Clear();
             CenterFitLine_DataShow.Points.Clear();
         }
-
-
 
         /// <summary>
         /// 控制命令：车辆停止命令

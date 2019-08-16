@@ -84,6 +84,9 @@ namespace APA_DebugAssistant
         private byte vehicle_speed_valid;
         private double vehicle_speed;
         private double target_vehicle_speed;
+
+        private double pulse_update_velocity;
+        private double acc_update_velocity;
         // monitor distance
         private double target_distance;
         // wheel pulse
@@ -722,6 +725,29 @@ namespace APA_DebugAssistant
             get
             {
                 return vehicle_speed;
+            }
+        }
+        public double PulseUpdateVelocity
+        {
+            set
+            {
+                pulse_update_velocity = value;
+            }
+            get
+            {
+                return pulse_update_velocity;
+            }
+        }
+
+        public double AccUpdateVelocity
+        {
+            set
+            {
+                acc_update_velocity = value;
+            }
+            get
+            {
+                return acc_update_velocity;
             }
         }
 
