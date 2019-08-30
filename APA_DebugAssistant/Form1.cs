@@ -39,6 +39,9 @@ namespace APA_DebugAssistant
         string[] VehicleDirection = new string[4] { "前进","后退","停车","无效"};
         string[] SteeringAngleActiveStatus = new string[4] { "无请求", "请求控制", "控制激活", "无效" };
 
+        string[] VCU_ControlStatus = new string[4] { "unavailible", "waiting", "active", "inactive" };
+        string[] ESC_ControlStatus = new string[4] { "unavailible", "standby", "active", "inactive" };
+        string[] EPS_ControlStatus = new string[4] { "unavailible", "availible", "active", "inactive" };
         //const double FRONT_EDGE_TO_CENTER = 3.54;
         //const double REAR_EDGE_TO_CENTER  = 0.905;
         //const double LEFT_EDGE_TO_CENTER  = 0.9275;
@@ -210,7 +213,7 @@ namespace APA_DebugAssistant
         }
 
         ObstacleDistancePacket FrontObstacle,RearObstacle;
-        string[] region_status = new string[3] { "左侧", "中间", "右侧"};
+        string[] region_status = new string[5] { "左侧", "左中","中间","右中", "右侧"};
         string[] valid_status = new string[5] { "正常", "盲区", "超探", "噪声", "无效" };
         #endregion
 
@@ -778,7 +781,7 @@ namespace APA_DebugAssistant
             dat[0] = Data_Temp[0];
             dat[1] = Data_Temp[1];
             dat[2] = (byte)(Convert.ToSingle(textBox5.Text) * 0.25);
-            dat[3] = (Byte)(Convert.ToSingle(textBox32.Text) * 10);//刹停速度
+            dat[3] = (Byte)(Convert.ToSingle(textBox32.Text) * 100);//刹停速度
             Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox31.Text)*1000));//刹停距离
             dat[4] = Data_Temp[0];
             dat[5] = Data_Temp[1];
@@ -1055,17 +1058,15 @@ namespace APA_DebugAssistant
                     break;
 
                 case 0x410:
-                    m_Vehicle.EMSQECACC         = Convert.ToBoolean((m_packet.Data[0] >> 2) & 0x01);
-                    m_Vehicle.ESPQDCACC         = Convert.ToBoolean((m_packet.Data[0] >> 1) & 0x01);
-                    m_Vehicle.APA_EpasFailed    = Convert.ToBoolean( m_packet.Data[0]  & 0x01);
-
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    m_Vehicle.VehicleSpeed = BitConverter.ToInt16(tmp_dat, 0) * 0.001;
                     tmp_dat[0] = m_packet.Data[2];
                     tmp_dat[1] = m_packet.Data[3];
                     m_Vehicle.SteeringAngleActual = BitConverter.ToInt16(tmp_dat, 0) * 0.1;
                     tmp_dat[0] = m_packet.Data[4];
                     tmp_dat[1] = m_packet.Data[5];
                     m_Vehicle.SteeringAngleSpeed = (UInt16)(BitConverter.ToUInt16(tmp_dat, 0) * 0.01);
-
                     break;
 
                 case 0x411:
@@ -1181,7 +1182,12 @@ namespace APA_DebugAssistant
                     tmp_dat[0] = m_packet.Data[4];
                     tmp_dat[1] = m_packet.Data[5];
                     m_Vehicle.YawRate = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
-                    VelocityControlDataLog();
+                    break;
+
+                case 0x418:
+                    m_Vehicle.EPS_Status = m_packet.Data[0];
+                    m_Vehicle.ESC_Status = m_packet.Data[1];
+                    m_Vehicle.VCU_Status = m_packet.Data[2];                
                     break;
 
                 case 0x440://反馈的车辆初始中心点位置
@@ -1413,7 +1419,6 @@ namespace APA_DebugAssistant
                     tmp_dat[0] = m_packet.Data[2];
                     tmp_dat[1] = m_packet.Data[3];
                     m_Vehicle.AccUpdateVelocity = BitConverter.ToUInt16(tmp_dat, 0) * 0.0001f;
-                     
                     break;
 
                 default:
@@ -1488,6 +1493,8 @@ namespace APA_DebugAssistant
                     break;
 
                 case 0xA6:
+                    m_Vehicle.WheelSpeedRearLeftPulse  = (UInt16)(((m_packet.Data[2] & 0x0f) << 6) | ((m_packet.Data[3] >> 2) & 0x3f));
+                    m_Vehicle.WheelSpeedRearRightPulse = (UInt16)(((m_packet.Data[3] & 0x03) << 8) |   m_packet.Data[4]              );
                     m_Vehicle.LonAcc = (UInt16)(((m_packet.Data[5] & 0x07) << 8) | m_packet.Data[6]) * 0.03 - 15.36;
                     break;
 
@@ -1597,9 +1604,9 @@ namespace APA_DebugAssistant
             {
                 this.Invoke((EventHandler)(delegate
                 {
-                    label5.ForeColor = m_Vehicle.EPS_Failed ? Color.AliceBlue : Color.BlueViolet;
-                    label6.ForeColor = m_Vehicle.ESPQDCACC ? Color.AliceBlue : Color.BlueViolet;
-                    label7.ForeColor = m_Vehicle.EMSQECACC ? Color.AliceBlue : Color.BlueViolet;
+                    //label5.ForeColor = m_Vehicle.EPS_Failed ? Color.AliceBlue : Color.BlueViolet;
+                    //label6.ForeColor = m_Vehicle.ESPQDCACC ? Color.AliceBlue : Color.BlueViolet;
+                    //label7.ForeColor = m_Vehicle.EMSQECACC ? Color.AliceBlue : Color.BlueViolet;
 
                     label52.ForeColor = m_Vehicle.TargetAccelerationEnable ? Color.DarkGoldenrod : Color.AliceBlue;
                     label53.ForeColor = m_Vehicle.TargetDecelerationEnable ? Color.DarkGoldenrod : Color.AliceBlue;
@@ -1607,13 +1614,18 @@ namespace APA_DebugAssistant
                     label55.ForeColor = m_Vehicle.GearShiftEnable ? Color.DarkGoldenrod : Color.AliceBlue;
                     label108.ForeColor = m_Vehicle.VelocityEnable ? Color.DarkGoldenrod : Color.AliceBlue;
 
-                    //label59.Text = SteeringAngleActiveStatus[m_Vehicle.SteeringAngleActive];
-                    label60.Text = m_Vehicle.ActualAccelerationACC.ToString();
-                    //label61.Text = m_Vehicle.TargetDecelerationAEB.ToString();
-                    label107.Text = m_Vehicle.Torque.ToString();
+                    //挡位信息
+                    label59.Text = GearState[m_Vehicle.GearShift];
+                    label60.Text = m_Vehicle.ActualAccelerationACC.ToString("F3");//控制ACC
+                    label61.Text = m_Vehicle.Torque.ToString("F3");//扭矩
+                    label107.Text = m_Vehicle.TargetVehicleSpeed.ToString("F3");//目标速度
 
-                    label11.Text = m_Vehicle.SteeringAngleActual.ToString();//转向角
-                    label12.Text = m_Vehicle.SteeringAngleSpeed.ToString();//转向角速度
+                    label181.Text = VCU_ControlStatus[m_Vehicle.VCU_Status];
+                    label182.Text = ESC_ControlStatus[m_Vehicle.ESC_Status];
+                    label183.Text = EPS_ControlStatus[m_Vehicle.EPS_Status];
+
+                    label11.Text = m_Vehicle.SteeringAngleActual.ToString("F3");//转向角
+                    label12.Text = m_Vehicle.SteeringAngleSpeed.ToString("F3");//转向角速度
 
                     label20.Text = m_Vehicle.VehicleSpeed.ToString("F3");//车身速度
 
@@ -1993,6 +2005,8 @@ namespace APA_DebugAssistant
                                 "{3:D} {4:D} " +
                                 "{5:R} " +
                                 "{6:R} {7:R} {8:R} " +
+                                "{9:R} {10:R} " +
+                                "{11:R} {12:R} " +
                                 "\r\n",
                                 TestErrTime,
                                 /// WheelSpeed
@@ -2006,7 +2020,13 @@ namespace APA_DebugAssistant
                                 // lon acc
                                 m_Vehicle.LonAcc,
                                 m_Vehicle.LatAcc,
-                                m_Vehicle.YawRate
+                                m_Vehicle.YawRate,
+                                // 嵌入式更新速度
+                                m_Vehicle.PulseUpdateVelocity,
+                                m_Vehicle.AccUpdateVelocity,
+                                //控制扭矩和减速度
+                                m_Vehicle.ActualAccelerationACC,
+                                m_Vehicle.Torque
                 );
             }
             TestLastTime = timeGetTime();
@@ -2924,7 +2944,7 @@ namespace APA_DebugAssistant
                 //    VehicleParse(obj[i]);
                 //}
                 //m_ZLGCAN.CAN_Receive(VehicleSendCAN, ref obj);
-                //for (int i = 0; i < obj.Length-1; i++)
+                //for (int i = 0; i < obj.Length - 1; i++)
                 //{
                 //    VehicleSendParse(obj[i]);
                 //}

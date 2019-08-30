@@ -104,10 +104,12 @@ namespace APA_DebugAssistant
         private bool steering_angle_valid;
         private bool sas_failure;
         
-        // ESP
-        private bool esp_qdc_acc;
-        // EMS
-        private bool ems_qec_acc;
+        // ESC
+        private byte esc_status;
+        // VCU
+        private byte vcu_status;
+        // EPS
+        private byte eps_status;
 
         private double lat_acc;
         private double lon_acc;
@@ -862,30 +864,45 @@ namespace APA_DebugAssistant
                 return wheel_speed_rear_right_pulse_sum;
             }
         }
-        // ESP
-        public bool ESPQDCACC
+
+        // ESC
+        public byte ESC_Status
         {
             set
             {
-                esp_qdc_acc = value;
+                esc_status = value;
             }
             get
             {
-                return esp_qdc_acc;
+                return esc_status;
             }
         }
-        //EMS
-        public bool EMSQECACC
+        //VCU
+        public byte VCU_Status
         {
             set
             {
-                ems_qec_acc = value;
+                vcu_status = value;
             }
             get
             {
-                return ems_qec_acc;
+                return vcu_status;
             }
         }
+
+        // EPS
+        public byte EPS_Status
+        {
+            set
+            {
+                eps_status = value;
+            }
+            get
+            {
+                return eps_status;
+            }
+        }
+
         //  SAS Steering angle
         public double SteeringAngleActual
         {

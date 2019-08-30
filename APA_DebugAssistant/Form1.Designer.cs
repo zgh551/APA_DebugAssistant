@@ -55,9 +55,9 @@
             this.label59 = new System.Windows.Forms.Label();
             this.label56 = new System.Windows.Forms.Label();
             this.label57 = new System.Windows.Forms.Label();
+            this.label61 = new System.Windows.Forms.Label();
             this.label58 = new System.Windows.Forms.Label();
             this.label60 = new System.Windows.Forms.Label();
-            this.label61 = new System.Windows.Forms.Label();
             this.label106 = new System.Windows.Forms.Label();
             this.label107 = new System.Windows.Forms.Label();
             this.tableLayoutPanel23 = new System.Windows.Forms.TableLayoutPanel();
@@ -66,6 +66,13 @@
             this.label54 = new System.Windows.Forms.Label();
             this.label55 = new System.Windows.Forms.Label();
             this.label108 = new System.Windows.Forms.Label();
+            this.tableLayoutPanel4 = new System.Windows.Forms.TableLayoutPanel();
+            this.label51 = new System.Windows.Forms.Label();
+            this.label181 = new System.Windows.Forms.Label();
+            this.label182 = new System.Windows.Forms.Label();
+            this.label183 = new System.Windows.Forms.Label();
+            this.label184 = new System.Windows.Forms.Label();
+            this.label185 = new System.Windows.Forms.Label();
             this.tableLayoutPanel8 = new System.Windows.Forms.TableLayoutPanel();
             this.groupBox4 = new System.Windows.Forms.GroupBox();
             this.tableLayoutPanel6 = new System.Windows.Forms.TableLayoutPanel();
@@ -431,6 +438,7 @@
             this.tableLayoutPanel21.SuspendLayout();
             this.tableLayoutPanel22.SuspendLayout();
             this.tableLayoutPanel23.SuspendLayout();
+            this.tableLayoutPanel4.SuspendLayout();
             this.tableLayoutPanel8.SuspendLayout();
             this.groupBox4.SuspendLayout();
             this.tableLayoutPanel6.SuspendLayout();
@@ -579,6 +587,7 @@
             this.tableLayoutPanel2.Controls.Add(this.groupBox17, 0, 0);
             this.tableLayoutPanel2.Controls.Add(this.groupBox3, 0, 1);
             this.tableLayoutPanel2.Controls.Add(this.groupBox15, 0, 2);
+            this.tableLayoutPanel2.Controls.Add(this.tableLayoutPanel4, 0, 3);
             this.tableLayoutPanel2.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tableLayoutPanel2.Location = new System.Drawing.Point(3, 3);
             this.tableLayoutPanel2.Name = "tableLayoutPanel2";
@@ -749,10 +758,10 @@
             this.tableLayoutPanel22.Controls.Add(this.label59, 1, 0);
             this.tableLayoutPanel22.Controls.Add(this.label56, 0, 0);
             this.tableLayoutPanel22.Controls.Add(this.label57, 0, 1);
-            this.tableLayoutPanel22.Controls.Add(this.label58, 0, 2);
-            this.tableLayoutPanel22.Controls.Add(this.label60, 1, 1);
             this.tableLayoutPanel22.Controls.Add(this.label61, 1, 2);
-            this.tableLayoutPanel22.Controls.Add(this.label106, 0, 3);
+            this.tableLayoutPanel22.Controls.Add(this.label58, 0, 3);
+            this.tableLayoutPanel22.Controls.Add(this.label60, 1, 1);
+            this.tableLayoutPanel22.Controls.Add(this.label106, 0, 2);
             this.tableLayoutPanel22.Controls.Add(this.label107, 1, 3);
             this.tableLayoutPanel22.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tableLayoutPanel22.Location = new System.Drawing.Point(3, 43);
@@ -779,11 +788,11 @@
             // 
             this.label56.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.label56.AutoSize = true;
-            this.label56.Location = new System.Drawing.Point(4, 3);
+            this.label56.Location = new System.Drawing.Point(13, 3);
             this.label56.Name = "label56";
-            this.label56.Size = new System.Drawing.Size(62, 18);
+            this.label56.Size = new System.Drawing.Size(44, 18);
             this.label56.TabIndex = 0;
-            this.label56.Text = "转向角";
+            this.label56.Text = "挡位";
             // 
             // label57
             // 
@@ -795,15 +804,25 @@
             this.label57.TabIndex = 0;
             this.label57.Text = "ACC";
             // 
+            // label61
+            // 
+            this.label61.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.label61.AutoSize = true;
+            this.label61.Location = new System.Drawing.Point(121, 53);
+            this.label61.Name = "label61";
+            this.label61.Size = new System.Drawing.Size(44, 18);
+            this.label61.TabIndex = 0;
+            this.label61.Text = "NULL";
+            // 
             // label58
             // 
             this.label58.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.label58.AutoSize = true;
-            this.label58.Location = new System.Drawing.Point(17, 53);
+            this.label58.Location = new System.Drawing.Point(13, 79);
             this.label58.Name = "label58";
-            this.label58.Size = new System.Drawing.Size(35, 18);
+            this.label58.Size = new System.Drawing.Size(44, 18);
             this.label58.TabIndex = 0;
-            this.label58.Text = "AEB";
+            this.label58.Text = "TarV";
             // 
             // label60
             // 
@@ -815,21 +834,11 @@
             this.label60.TabIndex = 0;
             this.label60.Text = "NULL";
             // 
-            // label61
-            // 
-            this.label61.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.label61.AutoSize = true;
-            this.label61.Location = new System.Drawing.Point(121, 53);
-            this.label61.Name = "label61";
-            this.label61.Size = new System.Drawing.Size(44, 18);
-            this.label61.TabIndex = 0;
-            this.label61.Text = "NULL";
-            // 
             // label106
             // 
             this.label106.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.label106.AutoSize = true;
-            this.label106.Location = new System.Drawing.Point(4, 79);
+            this.label106.Location = new System.Drawing.Point(4, 53);
             this.label106.Name = "label106";
             this.label106.Size = new System.Drawing.Size(62, 18);
             this.label106.TabIndex = 0;
@@ -915,6 +924,88 @@
             this.label108.Size = new System.Drawing.Size(17, 18);
             this.label108.TabIndex = 0;
             this.label108.Text = "V";
+            // 
+            // tableLayoutPanel4
+            // 
+            this.tableLayoutPanel4.ColumnCount = 2;
+            this.tableLayoutPanel4.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 80F));
+            this.tableLayoutPanel4.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.tableLayoutPanel4.Controls.Add(this.label51, 0, 0);
+            this.tableLayoutPanel4.Controls.Add(this.label181, 1, 0);
+            this.tableLayoutPanel4.Controls.Add(this.label182, 1, 1);
+            this.tableLayoutPanel4.Controls.Add(this.label183, 1, 2);
+            this.tableLayoutPanel4.Controls.Add(this.label184, 0, 1);
+            this.tableLayoutPanel4.Controls.Add(this.label185, 0, 2);
+            this.tableLayoutPanel4.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tableLayoutPanel4.Location = new System.Drawing.Point(3, 393);
+            this.tableLayoutPanel4.Name = "tableLayoutPanel4";
+            this.tableLayoutPanel4.RowCount = 4;
+            this.tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 30F));
+            this.tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 30F));
+            this.tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 30F));
+            this.tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.tableLayoutPanel4.Size = new System.Drawing.Size(228, 187);
+            this.tableLayoutPanel4.TabIndex = 7;
+            // 
+            // label51
+            // 
+            this.label51.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.label51.AutoSize = true;
+            this.label51.Location = new System.Drawing.Point(22, 6);
+            this.label51.Name = "label51";
+            this.label51.Size = new System.Drawing.Size(35, 18);
+            this.label51.TabIndex = 0;
+            this.label51.Text = "VCU";
+            // 
+            // label181
+            // 
+            this.label181.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.label181.AutoSize = true;
+            this.label181.Location = new System.Drawing.Point(132, 6);
+            this.label181.Name = "label181";
+            this.label181.Size = new System.Drawing.Size(44, 18);
+            this.label181.TabIndex = 0;
+            this.label181.Text = "NULL";
+            // 
+            // label182
+            // 
+            this.label182.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.label182.AutoSize = true;
+            this.label182.Location = new System.Drawing.Point(132, 36);
+            this.label182.Name = "label182";
+            this.label182.Size = new System.Drawing.Size(44, 18);
+            this.label182.TabIndex = 0;
+            this.label182.Text = "NULL";
+            // 
+            // label183
+            // 
+            this.label183.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.label183.AutoSize = true;
+            this.label183.Location = new System.Drawing.Point(132, 66);
+            this.label183.Name = "label183";
+            this.label183.Size = new System.Drawing.Size(44, 18);
+            this.label183.TabIndex = 0;
+            this.label183.Text = "NULL";
+            // 
+            // label184
+            // 
+            this.label184.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.label184.AutoSize = true;
+            this.label184.Location = new System.Drawing.Point(22, 36);
+            this.label184.Name = "label184";
+            this.label184.Size = new System.Drawing.Size(35, 18);
+            this.label184.TabIndex = 0;
+            this.label184.Text = "ESC";
+            // 
+            // label185
+            // 
+            this.label185.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.label185.AutoSize = true;
+            this.label185.Location = new System.Drawing.Point(22, 66);
+            this.label185.Name = "label185";
+            this.label185.Size = new System.Drawing.Size(35, 18);
+            this.label185.TabIndex = 0;
+            this.label185.Text = "EPS";
             // 
             // tableLayoutPanel8
             // 
@@ -5159,6 +5250,8 @@
             this.tableLayoutPanel22.PerformLayout();
             this.tableLayoutPanel23.ResumeLayout(false);
             this.tableLayoutPanel23.PerformLayout();
+            this.tableLayoutPanel4.ResumeLayout(false);
+            this.tableLayoutPanel4.PerformLayout();
             this.tableLayoutPanel8.ResumeLayout(false);
             this.groupBox4.ResumeLayout(false);
             this.tableLayoutPanel6.ResumeLayout(false);
@@ -5678,6 +5771,13 @@
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label label43;
         private System.Windows.Forms.Label label50;
+        private System.Windows.Forms.TableLayoutPanel tableLayoutPanel4;
+        private System.Windows.Forms.Label label51;
+        private System.Windows.Forms.Label label181;
+        private System.Windows.Forms.Label label182;
+        private System.Windows.Forms.Label label183;
+        private System.Windows.Forms.Label label184;
+        private System.Windows.Forms.Label label185;
     }
 }
 
