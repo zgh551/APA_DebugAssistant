@@ -52,10 +52,10 @@ namespace APA_DebugAssistant
         const double LEFT_EDGE_TO_CENTER = 0.9275;
         const double RIGHT_EDGE_TO_CENTER = 0.9275;
 
-        private Polar FrontLeftDiagonal;
-        private Polar FrontRightDiagonal;
-        private Polar RearLeftDiagonal;
-        private Polar RearRightDiagonal;
+            private Polar FrontLeftDiagonal;
+            private Polar FrontRightDiagonal;
+            private Polar RearLeftDiagonal;
+            private Polar RearRightDiagonal;
         #endregion
 
         #region 数据显示变量
@@ -92,6 +92,8 @@ namespace APA_DebugAssistant
         Series LeftFitLine_DataShow = new Series();//库位左边界拟合直线
         Series RightFitLine_DataShow = new Series();//库位右边界拟合直线
         Series CenterFitLine_DataShow = new Series();//库位左边界拟合直线
+
+        Series ObstacleDistance_DataShow = new Series();//障碍物距离显示
         //Series[] test_show = new Series[2] { new Series(),new Series()};
         byte track_update_status;
         byte parking_update_status;
@@ -126,6 +128,7 @@ namespace APA_DebugAssistant
 
         #region PID参数
         float Kp, Ki, Kd, Threshold;
+        byte ControlStateFlag;
         #endregion
 
         #region System Working State
@@ -1421,6 +1424,10 @@ namespace APA_DebugAssistant
                     m_Vehicle.AccUpdateVelocity = BitConverter.ToUInt16(tmp_dat, 0) * 0.0001f;
                     break;
 
+                case 0x4A0:
+                    ControlStateFlag = m_packet.Data[0];
+                    break;
+
                 default:
 
                     break;
@@ -1623,6 +1630,8 @@ namespace APA_DebugAssistant
                     label181.Text = VCU_ControlStatus[m_Vehicle.VCU_Status];
                     label182.Text = ESC_ControlStatus[m_Vehicle.ESC_Status];
                     label183.Text = EPS_ControlStatus[m_Vehicle.EPS_Status];
+
+                    label187.Text = ControlStateFlag.ToString("X");//lon control state flag
 
                     label11.Text = m_Vehicle.SteeringAngleActual.ToString("F3");//转向角
                     label12.Text = m_Vehicle.SteeringAngleSpeed.ToString("F3");//转向角速度
@@ -1922,6 +1931,8 @@ namespace APA_DebugAssistant
             label43.Text = region_status[RearObstacle.region];
             label50.Text = valid_status[RearObstacle.status];
 
+            //ObstacleDistance_DataShow.Points.AddY(FrontObstacle.Distance);
+
             if (FitLineShowFlag)
             {
                 if (checkBox13.Checked)
@@ -2007,14 +2018,15 @@ namespace APA_DebugAssistant
                                 "{6:R} {7:R} {8:R} " +
                                 "{9:R} {10:R} " +
                                 "{11:R} {12:R} " +
+                                "{13:R} {14:R} " +
                                 "\r\n",
                                 TestErrTime,
                                 /// WheelSpeed
                                 m_Vehicle.WheelSpeedRearLeftData,
                                 m_Vehicle.WheelSpeedRearRightData,
                                 // wheel pulse 
-                                m_Vehicle.WheelSpeedRearLeftPulse,
-                                m_Vehicle.WheelSpeedRearRightPulse,
+                                m_Vehicle.WheelSpeedRearLeftPulseSum,
+                                m_Vehicle.WheelSpeedRearRightPulseSum,
                                 // middle speed
                                 m_Vehicle.VehicleSpeed,
                                 // lon acc
@@ -2026,7 +2038,9 @@ namespace APA_DebugAssistant
                                 m_Vehicle.AccUpdateVelocity,
                                 //控制扭矩和减速度
                                 m_Vehicle.ActualAccelerationACC,
-                                m_Vehicle.Torque
+                                m_Vehicle.Torque,
+                                m_Vehicle.TargetVehicleSpeed,
+                                m_Vehicle.TargetDistance
                 );
             }
             TestLastTime = timeGetTime();
@@ -2640,10 +2654,11 @@ namespace APA_DebugAssistant
             #endregion
 
             #region 超声波障碍物定位Chart
-            UltrasonicLocationChart.ChartAreas[0].AxisX.Maximum = 1;
-            UltrasonicLocationChart.ChartAreas[0].AxisX.Minimum = -10;
-            UltrasonicLocationChart.ChartAreas[0].AxisY.Maximum = 9;
-            UltrasonicLocationChart.ChartAreas[0].AxisY.Minimum = -9;
+            //UltrasonicLocationChart.ChartAreas[0].AxisX.Maximum = 1;
+            //UltrasonicLocationChart.ChartAreas[0].AxisX.Minimum = -10;
+            //UltrasonicLocationChart.ChartAreas[0].AxisY.Maximum = 9;
+            //UltrasonicLocationChart.ChartAreas[0].AxisY.Minimum = -9;
+            //UltrasonicLocationChart.ChartAreas[0].AxisX.MaximumAutoSize = 100;
             //超声障碍物定位长距传感器数据显示
             UltrasonicLocationChart.Series.Add(UltrasonicObstacleLocation_LRU_DataShow);
             UltrasonicObstacleLocation_LRU_DataShow.ChartType = SeriesChartType.FastPoint;
@@ -2699,6 +2714,16 @@ namespace APA_DebugAssistant
             RightFitLine_DataShow.Color = Color.Green;
             RightFitLine_DataShow.IsVisibleInLegend = true;
             RightFitLine_DataShow.LegendText = "右边线";
+
+            UltrasonicLocationChart.Series.Add(ObstacleDistance_DataShow);
+            ObstacleDistance_DataShow.ChartType = SeriesChartType.FastLine;
+            ObstacleDistance_DataShow.BorderWidth = 2;
+            ObstacleDistance_DataShow.MarkerSize = 3;
+            ObstacleDistance_DataShow.BorderDashStyle = ChartDashStyle.Solid;
+            ObstacleDistance_DataShow.Color = Color.BurlyWood;
+            ObstacleDistance_DataShow.IsVisibleInLegend = true;
+            ObstacleDistance_DataShow.LegendText = "障碍物距离";
+            
             #endregion
             // add the thread of the can receive
             //ThreadStart CANTreadChild = new ThreadStart(CallToCANReceiveThread);
@@ -2938,6 +2963,7 @@ namespace APA_DebugAssistant
                 {
                     UltrasonicParse(obj[i]);
                 }
+
                 //m_ZLGCAN.CAN_Receive(VehicleReceiveCAN, ref obj);
                 //for (int i = 0; i < obj.Length-1; i++)
                 //{
@@ -2965,6 +2991,7 @@ namespace APA_DebugAssistant
                     UltrasonicLocationFormShow();
                     UltrasonicLocationDirectFormShow();
                 }
+                BoRuiInterfaceCAN1();
             }
             else if (2 == tabControl1.SelectedIndex)
             {
@@ -3613,6 +3640,18 @@ namespace APA_DebugAssistant
             }
         }
 
+        private void button2_Click(object sender, EventArgs e)
+        {
+            if(timer_show.Enabled)
+            {
+                timer_show.Stop();
+            }
+            else
+            {
+                timer_show.Start();
+            }
+        }
+
         /// <summary>
         /// 控制命令：使能障碍物计算
         /// </summary>
@@ -3916,6 +3955,90 @@ namespace APA_DebugAssistant
         }
         #endregion
 
+        private void button1_Click(object sender, EventArgs e)
+        {
+            uint id = 0x7C2;
+            byte len = 8;
+            byte[] dat = new byte[8];
+
+            //label186.Text = "开始标定";
+            dat[0] = 0x02;
+            dat[1] = 0x10;
+            dat[2] = 0x03;
+            dat[3] = 0x00;
+            dat[4] = 0x00;
+            dat[5] = 0x00;
+            dat[6] = 0x00;
+            dat[7] = 0x00;
+            m_ZLGCAN.CAN_Send(VehicleSendCAN, id, len, dat);
+            Thread.Sleep(500);
+
+            dat[0] = 0x04;
+            dat[1] = 0x31;
+            dat[2] = 0x01;
+            dat[3] = 0xF0;
+            dat[4] = 0x00;
+            dat[5] = 0x00;
+            dat[6] = 0x00;
+            dat[7] = 0x00;
+            m_ZLGCAN.CAN_Send(VehicleSendCAN, id, len, dat);
+            Thread.Sleep(500);
+
+            dat[0] = 0x04;
+            dat[1] = 0x31;
+            dat[2] = 0x03;
+            dat[3] = 0xF0;
+            dat[4] = 0x00;
+            dat[5] = 0x00;
+            dat[6] = 0x00;
+            dat[7] = 0x00;
+            m_ZLGCAN.CAN_Send(VehicleSendCAN, id, len, dat);
+            Thread.Sleep(500);
+
+            dat[0] = 0x04;
+            dat[1] = 0x31;
+            dat[2] = 0x02;
+            dat[3] = 0xF0;
+            dat[4] = 0x00;
+            dat[5] = 0x00;
+            dat[6] = 0x00;
+            dat[7] = 0x00;
+            m_ZLGCAN.CAN_Send(VehicleSendCAN, id, len, dat);
+            Thread.Sleep(500);
+
+            dat[0] = 0x02;
+            dat[1] = 0x10;
+            dat[2] = 0x01;
+            dat[3] = 0x00;
+            dat[4] = 0x00;
+            dat[5] = 0x00;
+            dat[6] = 0x00;
+            dat[7] = 0x00;
+            m_ZLGCAN.CAN_Send(VehicleSendCAN, id, len, dat);
+            Thread.Sleep(500);
+
+            dat[0] = 0x03;
+            dat[1] = 0x19;
+            dat[2] = 0x02;
+            dat[3] = 0x09;
+            dat[4] = 0x00;
+            dat[5] = 0x00;
+            dat[6] = 0x00;
+            dat[7] = 0x00;
+            m_ZLGCAN.CAN_Send(VehicleSendCAN, id, len, dat);
+            Thread.Sleep(500);
+
+            dat[0] = 0x04;
+            dat[1] = 0x14;
+            dat[2] = 0xFF;
+            dat[3] = 0xFF;
+            dat[4] = 0xFF;
+            dat[5] = 0x00;
+            dat[6] = 0x00;
+            dat[7] = 0x00;
+            m_ZLGCAN.CAN_Send(VehicleSendCAN, id, len, dat);
+            //label186.Text = "标定结束";
+        }
         #endregion
     }
 }
