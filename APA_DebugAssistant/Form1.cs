@@ -131,6 +131,11 @@ namespace APA_DebugAssistant
         byte ControlStateFlag;
         #endregion
 
+        #region 目标轨迹参数
+        Vector2d TargetTrack;
+        Single Sliding_x1, Sliding_x2, SlidingVariable;
+        #endregion
+
         #region System Working State
         string[] WorkingModule = new string[4] { "调试", "标定", "测试", "正常"};
         string[][] FunctionStatus = new string[4][]
@@ -287,7 +292,6 @@ namespace APA_DebugAssistant
         uint PlanLastTime, PlanErrTime;
         uint LocationMapLastTime, LocationMapErrTime;
         #endregion
-
 
         //System.Drawing.Imaging.ColorPalette GreyColorPalette = null;
         //System.Drawing.Bitmap newBitmap = null;
@@ -1173,6 +1177,9 @@ namespace APA_DebugAssistant
                     tmp_dat[0] = m_packet.Data[2];
                     tmp_dat[1] = m_packet.Data[3];
                     m_Vehicle.TargetAccelerationACC = BitConverter.ToInt16(tmp_dat, 0) * 0.001;
+                    tmp_dat[0] = m_packet.Data[4];
+                    tmp_dat[1] = m_packet.Data[5];
+                    m_Vehicle.SteeringAngleTarget = BitConverter.ToInt16(tmp_dat, 0) * 0.1;
                     break;
 
                 case 0x417:
@@ -1428,6 +1435,40 @@ namespace APA_DebugAssistant
                     ControlStateFlag = m_packet.Data[0];
                     break;
 
+                case 0x4B0:
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    tmp_dat[2] = m_packet.Data[2];
+                    tmp_dat[3] = m_packet.Data[3];
+                    TargetTrack.X = BitConverter.ToSingle(tmp_dat,0);
+                    tmp_dat[0] = m_packet.Data[4];
+                    tmp_dat[1] = m_packet.Data[5];
+                    tmp_dat[2] = m_packet.Data[6];
+                    tmp_dat[3] = m_packet.Data[7];
+                    TargetTrack.Y = BitConverter.ToSingle(tmp_dat, 0);
+                    break;
+
+                case 0x4B1:
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    tmp_dat[2] = m_packet.Data[2];
+                    tmp_dat[3] = m_packet.Data[3];
+                    Sliding_x1 = BitConverter.ToSingle(tmp_dat, 0);
+                    tmp_dat[0] = m_packet.Data[4];
+                    tmp_dat[1] = m_packet.Data[5];
+                    tmp_dat[2] = m_packet.Data[6];
+                    tmp_dat[3] = m_packet.Data[7];
+                    Sliding_x2 = BitConverter.ToSingle(tmp_dat, 0);
+                    break;
+
+                case 0x4B2:
+                    tmp_dat[0] = m_packet.Data[0];
+                    tmp_dat[1] = m_packet.Data[1];
+                    tmp_dat[2] = m_packet.Data[2];
+                    tmp_dat[3] = m_packet.Data[3];
+                    SlidingVariable = BitConverter.ToSingle(tmp_dat, 0);
+                    break;
+
                 default:
 
                     break;
@@ -1634,7 +1675,7 @@ namespace APA_DebugAssistant
                     label187.Text = ControlStateFlag.ToString("X");//lon control state flag
 
                     label11.Text = m_Vehicle.SteeringAngleActual.ToString("F3");//转向角
-                    label12.Text = m_Vehicle.SteeringAngleSpeed.ToString("F3");//转向角速度
+                    label12.Text = m_Vehicle.TargetAccelerationACC.ToString("F3");//转向角速度
 
                     label20.Text = m_Vehicle.VehicleSpeed.ToString("F3");//车身速度
 
@@ -2019,6 +2060,9 @@ namespace APA_DebugAssistant
                                 "{9:R} {10:R} " +
                                 "{11:R} {12:R} " +
                                 "{13:R} {14:R} " +
+                                "{15:R} {16:R} {17:D} " +   // Steering Angle
+                                "{18:R} {19:R} {20:R} " +   // Track
+                                "{21:R} {22:R} {23:R} {24:R} {25:R} " +
                                 "\r\n",
                                 TestErrTime,
                                 /// WheelSpeed
@@ -2040,7 +2084,21 @@ namespace APA_DebugAssistant
                                 m_Vehicle.ActualAccelerationACC,
                                 m_Vehicle.Torque,
                                 m_Vehicle.TargetVehicleSpeed,
-                                m_Vehicle.TargetDistance
+                                m_Vehicle.TargetDistance,
+                                /// Steering Angle 
+                                m_Vehicle.SteeringAngleTarget,
+                                m_Vehicle.SteeringAngleActual,
+                                m_Vehicle.SteeringAngleSpeed,
+                                /// 跟踪位置信息
+                                TrackPoint.Position.X,
+                                TrackPoint.Position.Y,
+                                TrackPoint.Yaw,
+                                /// 滑模变量
+                                TargetTrack.X,
+                                TargetTrack.Y,
+                                Sliding_x1,
+                                Sliding_x2,
+                                SlidingVariable
                 );
             }
             TestLastTime = timeGetTime();
@@ -2369,8 +2427,10 @@ namespace APA_DebugAssistant
                                 "{1:R} {2:R} {3:D} {4:R} " +
                                 "{5:R} {6:R} " +
                                 "{7:R} {8:R} " +
-                                "{9:R} {10:R} {11:R}" +
-                                "{12:R} {13:R} {14:R}" +
+                                "{9:R} {10:R} {11:R} " +
+                                "{12:R} {13:R} {14:R} " +
+                                "{15:R} {16:R} " +
+                                "{17:R} {18:R} {19:R} " +
                                 "\r\n",
                                 PlanErrTime,
                                 /// Steering Angle 
@@ -2391,7 +2451,12 @@ namespace APA_DebugAssistant
                                 /// 车辆姿态信息
                                 m_Vehicle.LatAcc,
                                 m_Vehicle.LonAcc,
-                                m_Vehicle.YawRate
+                                m_Vehicle.YawRate,
+                                TargetTrack.X,
+                                TargetTrack.Y,
+                                Sliding_x1,
+                                Sliding_x2,
+                                SlidingVariable
                 );
             }
             PlanLastTime = timeGetTime();
