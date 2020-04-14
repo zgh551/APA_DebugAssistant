@@ -3679,6 +3679,16 @@ namespace APA_DebugAssistant
         }
 
         /// <summary>
+        /// 曲线生成事件
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button4_Click(object sender, EventArgs e)
+        {
+            TerminalControlCommandCAN(0xD0);
+        }
+
+        /// <summary>
         /// 保存路径选择
         /// </summary>
         /// <param name="sender"></param>

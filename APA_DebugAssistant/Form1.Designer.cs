@@ -29,12 +29,12 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea19 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend19 = new System.Windows.Forms.DataVisualization.Charting.Legend();
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea20 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend20 = new System.Windows.Forms.DataVisualization.Charting.Legend();
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea21 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend21 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea1 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend1 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea2 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend2 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea3 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend3 = new System.Windows.Forms.DataVisualization.Charting.Legend();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
@@ -181,6 +181,9 @@
             this.comboBox5 = new System.Windows.Forms.ComboBox();
             this.label49 = new System.Windows.Forms.Label();
             this.button9 = new System.Windows.Forms.Button();
+            this.tableLayoutPanel13 = new System.Windows.Forms.TableLayoutPanel();
+            this.button4 = new System.Windows.Forms.Button();
+            this.button22 = new System.Windows.Forms.Button();
             this.tabPage2 = new System.Windows.Forms.TabPage();
             this.tableLayoutPanel26 = new System.Windows.Forms.TableLayoutPanel();
             this.tableLayoutPanel27 = new System.Windows.Forms.TableLayoutPanel();
@@ -469,6 +472,7 @@
             this.tableLayoutPanel9.SuspendLayout();
             this.groupBox13.SuspendLayout();
             this.tableLayoutPanel19.SuspendLayout();
+            this.tableLayoutPanel13.SuspendLayout();
             this.tabPage2.SuspendLayout();
             this.tableLayoutPanel26.SuspendLayout();
             this.tableLayoutPanel27.SuspendLayout();
@@ -2000,6 +2004,7 @@
             this.tableLayoutPanel18.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tableLayoutPanel18.Controls.Add(this.groupBox6, 0, 1);
             this.tableLayoutPanel18.Controls.Add(this.groupBox13, 0, 0);
+            this.tableLayoutPanel18.Controls.Add(this.tableLayoutPanel13, 0, 2);
             this.tableLayoutPanel18.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tableLayoutPanel18.Location = new System.Drawing.Point(723, 3);
             this.tableLayoutPanel18.Name = "tableLayoutPanel18";
@@ -2298,6 +2303,40 @@
             this.button9.TabIndex = 2;
             this.button9.Text = "系统模式配置";
             this.button9.UseVisualStyleBackColor = true;
+            // 
+            // tableLayoutPanel13
+            // 
+            this.tableLayoutPanel13.ColumnCount = 1;
+            this.tableLayoutPanel13.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            this.tableLayoutPanel13.Controls.Add(this.button4, 0, 0);
+            this.tableLayoutPanel13.Controls.Add(this.button22, 0, 1);
+            this.tableLayoutPanel13.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tableLayoutPanel13.Location = new System.Drawing.Point(3, 503);
+            this.tableLayoutPanel13.Name = "tableLayoutPanel13";
+            this.tableLayoutPanel13.RowCount = 2;
+            this.tableLayoutPanel13.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            this.tableLayoutPanel13.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            this.tableLayoutPanel13.Size = new System.Drawing.Size(228, 77);
+            this.tableLayoutPanel13.TabIndex = 1;
+            // 
+            // button4
+            // 
+            this.button4.Location = new System.Drawing.Point(3, 3);
+            this.button4.Name = "button4";
+            this.button4.Size = new System.Drawing.Size(222, 32);
+            this.button4.TabIndex = 0;
+            this.button4.Text = "目标曲线生成";
+            this.button4.UseVisualStyleBackColor = true;
+            this.button4.Click += new System.EventHandler(this.button4_Click);
+            // 
+            // button22
+            // 
+            this.button22.Location = new System.Drawing.Point(3, 41);
+            this.button22.Name = "button22";
+            this.button22.Size = new System.Drawing.Size(222, 33);
+            this.button22.TabIndex = 1;
+            this.button22.Text = "启动横向控制";
+            this.button22.UseVisualStyleBackColor = true;
             // 
             // tabPage2
             // 
@@ -3097,11 +3136,11 @@
             // 
             // ultrasonic_chart
             // 
-            chartArea19.Name = "ChartArea1";
-            this.ultrasonic_chart.ChartAreas.Add(chartArea19);
+            chartArea1.Name = "ChartArea1";
+            this.ultrasonic_chart.ChartAreas.Add(chartArea1);
             this.ultrasonic_chart.Dock = System.Windows.Forms.DockStyle.Fill;
-            legend19.Name = "Legend1";
-            this.ultrasonic_chart.Legends.Add(legend19);
+            legend1.Name = "Legend1";
+            this.ultrasonic_chart.Legends.Add(legend1);
             this.ultrasonic_chart.Location = new System.Drawing.Point(3, 3);
             this.ultrasonic_chart.Name = "ultrasonic_chart";
             this.ultrasonic_chart.Size = new System.Drawing.Size(994, 457);
@@ -4122,11 +4161,11 @@
             // 
             // track_chart
             // 
-            chartArea20.Name = "ChartArea1";
-            this.track_chart.ChartAreas.Add(chartArea20);
+            chartArea2.Name = "ChartArea1";
+            this.track_chart.ChartAreas.Add(chartArea2);
             this.track_chart.Dock = System.Windows.Forms.DockStyle.Fill;
-            legend20.Name = "Legend1";
-            this.track_chart.Legends.Add(legend20);
+            legend2.Name = "Legend1";
+            this.track_chart.Legends.Add(legend2);
             this.track_chart.Location = new System.Drawing.Point(3, 3);
             this.track_chart.Name = "track_chart";
             this.track_chart.Size = new System.Drawing.Size(994, 497);
@@ -4971,11 +5010,11 @@
             // 
             // UltrasonicLocationChart
             // 
-            chartArea21.Name = "ChartArea1";
-            this.UltrasonicLocationChart.ChartAreas.Add(chartArea21);
+            chartArea3.Name = "ChartArea1";
+            this.UltrasonicLocationChart.ChartAreas.Add(chartArea3);
             this.UltrasonicLocationChart.Dock = System.Windows.Forms.DockStyle.Fill;
-            legend21.Name = "Legend1";
-            this.UltrasonicLocationChart.Legends.Add(legend21);
+            legend3.Name = "Legend1";
+            this.UltrasonicLocationChart.Legends.Add(legend3);
             this.UltrasonicLocationChart.Location = new System.Drawing.Point(3, 3);
             this.UltrasonicLocationChart.Name = "UltrasonicLocationChart";
             this.UltrasonicLocationChart.Size = new System.Drawing.Size(1000, 503);
@@ -5341,6 +5380,7 @@
             this.groupBox13.ResumeLayout(false);
             this.tableLayoutPanel19.ResumeLayout(false);
             this.tableLayoutPanel19.PerformLayout();
+            this.tableLayoutPanel13.ResumeLayout(false);
             this.tabPage2.ResumeLayout(false);
             this.tableLayoutPanel26.ResumeLayout(false);
             this.tableLayoutPanel27.ResumeLayout(false);
@@ -5835,6 +5875,9 @@
         private System.Windows.Forms.Button button2;
         private System.Windows.Forms.Label label186;
         private System.Windows.Forms.Label label187;
+        private System.Windows.Forms.TableLayoutPanel tableLayoutPanel13;
+        private System.Windows.Forms.Button button4;
+        private System.Windows.Forms.Button button22;
     }
 }
 
