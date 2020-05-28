@@ -137,13 +137,14 @@ namespace APA_DebugAssistant
         #endregion
 
         #region System Working State
-        string[] WorkingModule = new string[4] { "调试", "标定", "测试", "正常"};
-        string[][] FunctionStatus = new string[4][]
+        string[] WorkingModule = new string[5] { "调试", "标定", "测试", "正常", "超声配置模式"};
+        string[][] FunctionStatus = new string[5][]
         {
             new string [4] { "直接控制", "速度控制", "长安车控制", "超声波收发"},
             new string [3] { "速度标定", "脉冲标定", "超声波标定"},
             new string [4] { "车位检测", "侧方停车", "垂直停车", "斜向停车" },
-            new string [5] { "APA_1.0", "APA_2.0", "APA_3.0", "APA_4.0", "APA_5.0"}
+            new string [5] { "APA_1.0", "APA_2.0", "APA_3.0", "APA_4.0", "APA_5.0"},
+            new string [2] { "检车位模式", "正常模式"}
         };
 
         byte WorkingModuleValue = 0, FunctionStatusValue = 0;
@@ -528,6 +529,22 @@ namespace APA_DebugAssistant
             byte[] dat = new byte[8];
             dat[0] = cmd;
             dat[1] = 0;
+            dat[2] = 0;
+            dat[3] = 0;
+            dat[4] = 0;
+            dat[5] = 0;
+            dat[6] = 0;
+            dat[7] = 0;
+            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+        }
+
+        private void TerminalWorkModeCommandCAN(byte wk,byte fc)
+        {
+            uint id = 0x531;
+            byte len = 8;
+            byte[] dat = new byte[8];
+            dat[0] = wk;
+            dat[1] = fc;
             dat[2] = 0;
             dat[3] = 0;
             dat[4] = 0;
@@ -2818,7 +2835,7 @@ namespace APA_DebugAssistant
             }
             comboBox3.SelectedIndex = 1;
 
-            for(int i = 0; i < 4;i++)
+            for(int i = 0; i < 5;i++)
             {
                 comboBox4.Items.Add(WorkingModule[i]);
             }
@@ -3442,22 +3459,22 @@ namespace APA_DebugAssistant
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        //private void comboBox4_SelectedIndexChanged(object sender, EventArgs e)
-        //{
-        //    try
-        //    {
-        //        comboBox5.Items.Clear();
-        //        for (int i = 0; i < FunctionStatus[comboBox4.SelectedIndex].Length; i++)
-        //        {
-        //            comboBox5.Items.Add(FunctionStatus[comboBox4.SelectedIndex][i]);
-        //        }
-        //        comboBox5.SelectedIndex = 0;
-        //    }
-        //    catch
-        //    {
-        //        MessageBox.Show("模式索引越界！");
-        //    }
-        //}
+        private void comboBox4_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                comboBox5.Items.Clear();
+                for (int i = 0; i < FunctionStatus[comboBox4.SelectedIndex].Length; i++)
+                {
+                    comboBox5.Items.Add(FunctionStatus[comboBox4.SelectedIndex][i]);
+                }
+                comboBox5.SelectedIndex = 0;
+            }
+            catch
+            {
+                MessageBox.Show("模式索引越界！");
+            }
+        }
         #endregion
 
         #region 超声波数据注入
@@ -3686,6 +3703,11 @@ namespace APA_DebugAssistant
         private void button4_Click(object sender, EventArgs e)
         {
             TerminalControlCommandCAN(0xD0);
+        }
+
+        private void button9_Click(object sender, EventArgs e)
+        {
+            TerminalWorkModeCommandCAN((byte)comboBox4.SelectedIndex, (byte)comboBox5.SelectedIndex);
         }
 
         /// <summary>
