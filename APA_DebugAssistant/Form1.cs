@@ -34,14 +34,15 @@ namespace APA_DebugAssistant
 
         #region 车辆本身相关变量
         Vehicle m_Vehicle = new Vehicle();
-        double setTargetVehicleSpeed = 0;
-        string[] GearState = new string[8] { "No Request", "驻车", "倒车", "空挡", "前进", "无效", "保留", "保留" };
-        string[] VehicleDirection = new string[4] { "前进","后退","停车","无效"};
-        string[] SteeringAngleActiveStatus = new string[4] { "无请求", "请求控制", "控制激活", "无效" };
 
-        string[] VCU_ControlStatus = new string[4] { "unavailible", "waiting", "active", "inactive" };
-        string[] ESC_ControlStatus = new string[4] { "unavailible", "standby", "active", "inactive" };
-        string[] EPS_ControlStatus = new string[4] { "unavailible", "availible", "active", "inactive" };
+        string[] GearStatus         = new string[8] { "No Request", "驻车", "倒车", "空挡", "前进", "无效", "保留", "保留" };
+        string[] VehicleDirection   = new string[4] { "静止", "前进", "后退", "无效" };
+        string[] EPB_SwitchPosition = new string[4] { "无请求", "锁住", "释放", "无效" };
+        string[] APA_SystemState    = new string[2] { "NoReady", "Ready" };
+        string[] DriverMode         = new string[2] { "手动模式", "自动模式" };
+
+        //string[] ESC_ControlStatus = new string[4] { "unavailible", "standby", "active", "inactive" };
+        //string[] EPS_ControlStatus = new string[4] { "unavailible", "availible", "active", "inactive" };
         //const double FRONT_EDGE_TO_CENTER = 3.54;
         //const double REAR_EDGE_TO_CENTER  = 0.905;
         //const double LEFT_EDGE_TO_CENTER  = 0.9275;
@@ -686,69 +687,69 @@ namespace APA_DebugAssistant
         /// <summary>
         /// 用于长安车调试的接口控制函数
         /// </summary>
-        private void ChangAnInterfaceCAN()
-        {
-            uint id = 0x516;
-            byte len = 8;
-            byte CheckSum;
-            byte[] dat = new byte[8];
-            byte[] Data_Temp = new byte[8];//动态分配内存
+        //private void ChangAnInterfaceCAN()
+        //{
+        //    uint id = 0x516;
+        //    byte len = 8;
+        //    byte CheckSum;
+        //    byte[] dat = new byte[8];
+        //    byte[] Data_Temp = new byte[8];//动态分配内存
 
-            dat[0] = (byte)(
-                              (Convert.ToByte(checkBox6.Checked) << 3)// Velocity 
-                            | (Convert.ToByte(checkBox3.Checked) << 5)// Torque 
-                            | (Convert.ToByte(checkBox2.Checked) << 4)// AEB 
-                            | (Convert.ToByte(checkBox1.Checked) << 2)// ACC
-                            | (Convert.ToByte(checkBox4.Checked) << 1)// Steering Angle
-                            | Convert.ToByte(checkBox5.Checked)      // Gear enable
-                            );
-            dat[1] = Convert.ToByte(comboBox3.SelectedIndex);// 挡位
+        //    dat[0] = (byte)(
+        //                      (Convert.ToByte(checkBox6.Checked) << 3)// Velocity 
+        //                    | (Convert.ToByte(checkBox3.Checked) << 5)// Torque 
+        //                    | (Convert.ToByte(checkBox2.Checked) << 4)// AEB 
+        //                    | (Convert.ToByte(checkBox1.Checked) << 2)// ACC
+        //                    | (Convert.ToByte(checkBox4.Checked) << 1)// Steering Angle
+        //                    | Convert.ToByte(checkBox5.Checked)      // Gear enable
+        //                    );
+        //    dat[1] = Convert.ToByte(comboBox3.SelectedIndex);// 挡位
 
-            Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox4.Text) * 10));//转向角
-            dat[2] = Data_Temp[0];
-            dat[3] = Data_Temp[1];
+        //    Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox4.Text) * 10));//转向角
+        //    dat[2] = Data_Temp[0];
+        //    dat[3] = Data_Temp[1];
 
-            Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox5.Text) * 100));//转向角速度
-            dat[4] = Data_Temp[0];
-            dat[5] = Data_Temp[1];
+        //    Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox5.Text) * 100));//转向角速度
+        //    dat[4] = Data_Temp[0];
+        //    dat[5] = Data_Temp[1];
 
-            dat[6] = 0;
-            CheckSum = 0;
-            for (int i = 0; i < 7; i++)
-            {
-                CheckSum += dat[i];
-            }
-            CheckSum ^= 0xFF;
-            dat[7] = CheckSum;
-            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+        //    dat[6] = 0;
+        //    CheckSum = 0;
+        //    for (int i = 0; i < 7; i++)
+        //    {
+        //        CheckSum += dat[i];
+        //    }
+        //    CheckSum ^= 0xFF;
+        //    dat[7] = CheckSum;
+        //    m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
 
-            id = 0x517;
+        //    id = 0x517;
 
-            Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox1.Text) * 1000));//ACC加速度
-            dat[0] = Data_Temp[0];
-            dat[1] = Data_Temp[1];
+        //    Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox1.Text) * 1000));//ACC加速度
+        //    dat[0] = Data_Temp[0];
+        //    dat[1] = Data_Temp[1];
 
-            Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox2.Text) * 1000));//AEB减速度
-            dat[2] = Data_Temp[0];
-            dat[3] = Data_Temp[1];
+        //    Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox2.Text) * 1000));//AEB减速度
+        //    dat[2] = Data_Temp[0];
+        //    dat[3] = Data_Temp[1];
 
-            Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox12.Text) * 1000));//车辆速度
-            dat[4] = Data_Temp[0];
-            dat[5] = Data_Temp[1];
+        //    Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox12.Text) * 1000));//车辆速度
+        //    dat[4] = Data_Temp[0];
+        //    dat[5] = Data_Temp[1];
 
-            dat[6] = (byte)(Convert.ToSingle(textBox3.Text) * 0.5);// 扭矩
-            CheckSum = 0;
-            for (int i = 0; i < 7; i++)
-            {
-                CheckSum += dat[i];
-            }
-            CheckSum ^= 0xFF;
-            dat[7] = CheckSum;
-            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
-        }
+        //    dat[6] = (byte)(Convert.ToSingle(textBox3.Text) * 0.5);// 扭矩
+        //    CheckSum = 0;
+        //    for (int i = 0; i < 7; i++)
+        //    {
+        //        CheckSum += dat[i];
+        //    }
+        //    CheckSum ^= 0xFF;
+        //    dat[7] = CheckSum;
+        //    m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+        //}
         #endregion
 
-        #region 博瑞对接接口
+        #region 通用对接接口
         private void VehicleControlCAN_BR1()
         {
             uint id = 0x411;
@@ -793,7 +794,7 @@ namespace APA_DebugAssistant
             m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
         }
 
-        private void BoRuiInterfaceCAN1()
+        private void ControlInterfaceCAN()
         {
             uint id = 0x518;
             byte len = 8;
@@ -805,7 +806,7 @@ namespace APA_DebugAssistant
             dat[0] = Data_Temp[0];
             dat[1] = Data_Temp[1];
             dat[2] = (byte)(Convert.ToSingle(textBox5.Text) * 0.25);
-            dat[3] = (Byte)(Convert.ToSingle(textBox32.Text) * 100);//刹停速度
+            dat[3] = (byte)(Convert.ToSingle(textBox32.Text) * 100);//刹停速度
             Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox31.Text)*1000));//刹停距离
             dat[4] = Data_Temp[0];
             dat[5] = Data_Temp[1];
@@ -822,63 +823,24 @@ namespace APA_DebugAssistant
 
             m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
         }
-        #endregion
 
-        #region 东风接口
-        /// <summary>
-        /// 用于东风车调试的接口控制函数
-        /// </summary>
-        private void DongFengInterfaceCAN()
+        private void EmergencyInterfaceCAN()
         {
-            uint id = 0x519;
+            uint id = 0x51B;
             byte len = 8;
             byte CheckSum;
             byte[] dat = new byte[8];
             byte[] Data_Temp = new byte[8];//动态分配内存
-
-            Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox4.Text) * 10));//转向角
-            dat[0] = Data_Temp[0];
-            dat[1] = Data_Temp[1];
-
-            Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox5.Text) * 100));//转向角速度
-            dat[2] = Data_Temp[0];
-            dat[3] = Data_Temp[1];
-
-            Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox3.Text) * 1));//扭矩
-            dat[4] = Data_Temp[0];
-            dat[5] = Data_Temp[1];
-
-            dat[6] = (byte)(
-                              (Convert.ToByte(checkBox6.Checked) << 3)// Velocity 
-                            | (Convert.ToByte(checkBox3.Checked) << 5)// Torque 
-                            | (Convert.ToByte(checkBox2.Checked) << 4)// AEB 
-                            | (Convert.ToByte(checkBox1.Checked) << 2)// ACC
-                            | (Convert.ToByte(checkBox4.Checked) << 1)// Steering Angle
-                            |  Convert.ToByte(checkBox5.Checked)      // Gear enable
-                            );
-            CheckSum = 0;
-            for (int i = 0; i < 7; i++)
-            {
-                CheckSum += dat[i];
-            }
-            CheckSum ^= 0xFF;
-            dat[7] = CheckSum;
-            m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
-
-            id = 0x51A;
-            Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox1.Text) * 1000));//ACC加速度
-            dat[0] = Data_Temp[0];
-            dat[1] = Data_Temp[1];
-
-            Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox2.Text) * 1000));//AEB减速度
-            dat[2] = Data_Temp[0];
-            dat[3] = Data_Temp[1];
-
-            Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox12.Text) * 1000));//车辆速度
-            dat[4] = Data_Temp[0];
-            dat[5] = Data_Temp[1];
-
-            dat[6] = Convert.ToByte(comboBox3.SelectedIndex);// 挡位
+            float f_temp_data;
+            f_temp_data = Convert.ToSingle(textBox9.Text);//制动行程
+            f_temp_data = f_temp_data > 100.0f ? 100.0f : f_temp_data < 0.0f ? 0.0f : f_temp_data;
+            dat[0] = (byte)(f_temp_data * 2.5f);
+            dat[1] = (byte)Convert.ToByte(checkBox6.Checked);
+            dat[2] = (byte)Convert.ToByte(checkBox14.Checked);
+            dat[3] = 0;
+            dat[4] = 0;
+            dat[5] = 0;
+            dat[6] = 0;
             CheckSum = 0;
             for (int i = 0; i < 7; i++)
             {
@@ -888,6 +850,72 @@ namespace APA_DebugAssistant
             dat[7] = CheckSum;
             m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
         }
+        #endregion
+
+        #region 东风接口
+        /// <summary>
+        /// 用于东风车调试的接口控制函数
+        /// </summary>
+        //private void DongFengInterfaceCAN()
+        //{
+        //    uint id = 0x519;
+        //    byte len = 8;
+        //    byte CheckSum;
+        //    byte[] dat = new byte[8];
+        //    byte[] Data_Temp = new byte[8];//动态分配内存
+
+        //    Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox4.Text) * 10));//转向角
+        //    dat[0] = Data_Temp[0];
+        //    dat[1] = Data_Temp[1];
+
+        //    Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox5.Text) * 100));//转向角速度
+        //    dat[2] = Data_Temp[0];
+        //    dat[3] = Data_Temp[1];
+
+        //    Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox3.Text) * 1));//扭矩
+        //    dat[4] = Data_Temp[0];
+        //    dat[5] = Data_Temp[1];
+
+        //    dat[6] = (byte)(
+        //                      (Convert.ToByte(checkBox6.Checked) << 3)// Velocity 
+        //                    | (Convert.ToByte(checkBox3.Checked) << 5)// Torque 
+        //                    | (Convert.ToByte(checkBox2.Checked) << 4)// AEB 
+        //                    | (Convert.ToByte(checkBox1.Checked) << 2)// ACC
+        //                    | (Convert.ToByte(checkBox4.Checked) << 1)// Steering Angle
+        //                    |  Convert.ToByte(checkBox5.Checked)      // Gear enable
+        //                    );
+        //    CheckSum = 0;
+        //    for (int i = 0; i < 7; i++)
+        //    {
+        //        CheckSum += dat[i];
+        //    }
+        //    CheckSum ^= 0xFF;
+        //    dat[7] = CheckSum;
+        //    m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+
+        //    id = 0x51A;
+        //    Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox1.Text) * 1000));//ACC加速度
+        //    dat[0] = Data_Temp[0];
+        //    dat[1] = Data_Temp[1];
+
+        //    Data_Temp = BitConverter.GetBytes((Int16)(Convert.ToSingle(textBox2.Text) * 1000));//AEB减速度
+        //    dat[2] = Data_Temp[0];
+        //    dat[3] = Data_Temp[1];
+
+        //    Data_Temp = BitConverter.GetBytes((UInt16)(Convert.ToSingle(textBox12.Text) * 1000));//车辆速度
+        //    dat[4] = Data_Temp[0];
+        //    dat[5] = Data_Temp[1];
+
+        //    dat[6] = Convert.ToByte(comboBox3.SelectedIndex);// 挡位
+        //    CheckSum = 0;
+        //    for (int i = 0; i < 7; i++)
+        //    {
+        //        CheckSum += dat[i];
+        //    }
+        //    CheckSum ^= 0xFF;
+        //    dat[7] = CheckSum;
+        //    m_ZLGCAN.CAN_Send(TerminalCAN, id, len, dat);
+        //}
         #endregion
 
         #region 应答接口
@@ -1091,6 +1119,10 @@ namespace APA_DebugAssistant
                     tmp_dat[0] = m_packet.Data[4];
                     tmp_dat[1] = m_packet.Data[5];
                     m_Vehicle.SteeringAngleSpeed = (UInt16)(BitConverter.ToUInt16(tmp_dat, 0) * 0.01);
+                    m_Vehicle.ActualGearShift = Convert.ToByte(m_packet.Data[6] & 0x0f);
+                    m_Vehicle.WheelSpeedDirection   = Convert.ToByte( m_packet.Data[7]       & 0x03);
+                    m_Vehicle.SystemReadySts        = Convert.ToByte((m_packet.Data[7] >> 2) & 0x01);
+                    m_Vehicle.AutoDriverModeSts     = Convert.ToByte((m_packet.Data[7] >> 2) & 0x01);
                     break;
 
                 case 0x411:
@@ -1144,14 +1176,14 @@ namespace APA_DebugAssistant
                     m_Vehicle.SteeringAngleActive      = Convert.ToByte   ((m_packet.Data[0] >> 4) & 0x03);
                     m_Vehicle.GearShiftEnable          = Convert.ToBoolean((m_packet.Data[0] >> 6) & 0x01);
 
-                    m_Vehicle.GearShift = m_packet.Data[1];
+                    m_Vehicle.TargetGearShift = m_packet.Data[1];
                     if (checkBox7.Checked)
                     {
-                        if (4 == m_Vehicle.GearShift)
+                        if (4 == m_Vehicle.TargetGearShift)
                         {
                             m_Vehicle.WheelSpeedRearRightDirection = 0;
                         }
-                        else if (2 == m_Vehicle.GearShift)
+                        else if (2 == m_Vehicle.TargetGearShift)
                         {
                             m_Vehicle.WheelSpeedRearRightDirection = 1;
                         }
@@ -1209,12 +1241,30 @@ namespace APA_DebugAssistant
                     tmp_dat[0] = m_packet.Data[4];
                     tmp_dat[1] = m_packet.Data[5];
                     m_Vehicle.YawRate = BitConverter.ToInt16(tmp_dat, 0) * 0.01;
+                    tmp_dat[0] = m_packet.Data[6];
+                    tmp_dat[1] = m_packet.Data[7];
+                    m_Vehicle.Temperature = BitConverter.ToInt16(tmp_dat, 0) * 0.1;
                     break;
 
                 case 0x418:
-                    m_Vehicle.EPS_Status = m_packet.Data[0];
-                    m_Vehicle.ESC_Status = m_packet.Data[1];
-                    m_Vehicle.VCU_Status = m_packet.Data[2];                
+                    m_Vehicle.EPS_Status = Convert.ToByte( m_packet.Data[0]       & 0x01);
+                    m_Vehicle.ESC_Status = Convert.ToByte((m_packet.Data[0] >> 1) & 0x01);
+                    m_Vehicle.EPB_Status = Convert.ToByte((m_packet.Data[0] >> 2) & 0x01);
+                    m_Vehicle.VCU_Status = Convert.ToByte((m_packet.Data[0] >> 3) & 0x01);
+                    m_Vehicle.SAS_Status = Convert.ToByte((m_packet.Data[0] >> 4) & 0x01);
+                    m_Vehicle.TCU_Status = Convert.ToByte((m_packet.Data[0] >> 5) & 0x01);
+                    m_Vehicle.EMS_Status = Convert.ToByte((m_packet.Data[0] >> 6) & 0x01);
+
+                    m_Vehicle.DriverDoorSts     = Convert.ToByte( m_packet.Data[1]       & 0x01);
+                    m_Vehicle.PassangerDoorSts  = Convert.ToByte((m_packet.Data[1] >> 1) & 0x01);
+                    m_Vehicle.TrunkSts          = Convert.ToByte((m_packet.Data[1] >> 2) & 0x01);
+
+                    m_Vehicle.TurnLightLeftSts  = Convert.ToByte( m_packet.Data[2]       & 0x01);
+                    m_Vehicle.TurnLightRightSts = Convert.ToByte((m_packet.Data[2] >> 1) & 0x01);
+
+                    m_Vehicle.DriverSeatBeltSwitchSts = Convert.ToByte(m_packet.Data[3] & 0x01);
+
+                    m_Vehicle.EPB_SwitchPosition = Convert.ToByte(m_packet.Data[4] & 0x03);
                     break;
 
                 case 0x440://反馈的车辆初始中心点位置
@@ -1642,9 +1692,9 @@ namespace APA_DebugAssistant
             byte[] dat = new byte[8];
 
             dat[0] = 0;
-            dat[1] = (m_Vehicle.GearShift == 1) ? (byte)0x0A :
-                     (m_Vehicle.GearShift == 2) ? (byte)0x09 :
-                     (m_Vehicle.GearShift == 3) ? (byte)0x00 : (byte)0x01;
+            dat[1] = (m_Vehicle.TargetGearShift == 1) ? (byte)0x0A :
+                     (m_Vehicle.TargetGearShift == 2) ? (byte)0x09 :
+                     (m_Vehicle.TargetGearShift == 3) ? (byte)0x00 : (byte)0x01;
             dat[2] = 0;
             dat[3] = 0;
             dat[4] = 0;
@@ -1661,68 +1711,65 @@ namespace APA_DebugAssistant
         /// </summary>
         private void VehicleImformationShow()
         {
-            label5.Invoke((MethodInvoker)delegate () {
-                label5.ForeColor = m_Vehicle.EPS_Failed ? Color.AliceBlue : Color.BlueViolet;
-
-            });
             try
             {
                 this.Invoke((EventHandler)(delegate
                 {
-                    //label5.ForeColor = m_Vehicle.EPS_Failed ? Color.AliceBlue : Color.BlueViolet;
-                    //label6.ForeColor = m_Vehicle.ESPQDCACC ? Color.AliceBlue : Color.BlueViolet;
-                    //label7.ForeColor = m_Vehicle.EMSQECACC ? Color.AliceBlue : Color.BlueViolet;
+                    label191.ForeColor = m_Vehicle.DriverDoorSts == 0 ? Color.AliceBlue : Color.DarkViolet;//主驾驶门
+                    label192.ForeColor = m_Vehicle.PassangerDoorSts == 0 ? Color.AliceBlue : Color.DarkViolet; //副驾驶门
+                    label195.ForeColor = m_Vehicle.TrunkSts == 0 ? Color.AliceBlue : Color.DarkViolet; //后备箱
+                    label196.ForeColor = m_Vehicle.TurnLightLeftSts == 0 ? Color.AliceBlue : Color.Lime; //左转灯
+                    label197.ForeColor = m_Vehicle.TurnLightRightSts == 0 ? Color.AliceBlue : Color.Lime; //右转灯
+                    label198.ForeColor = m_Vehicle.DriverSeatBeltSwitchSts == 0 ? Color.AliceBlue : Color.Red; //主驾驶安全带
 
+                    //执行器状态显示
+                    label5.ForeColor = m_Vehicle.EPS_Status == 0 ? Color.AliceBlue : Color.BlueViolet;
+                    label6.ForeColor = m_Vehicle.ESC_Status == 0 ? Color.AliceBlue : Color.BlueViolet;
+                    label7.ForeColor = m_Vehicle.EPB_Status == 0 ? Color.AliceBlue : Color.BlueViolet;
+
+                    //控制状态显示
                     label52.ForeColor = m_Vehicle.TargetAccelerationEnable ? Color.DarkGoldenrod : Color.AliceBlue;
                     label53.ForeColor = m_Vehicle.TargetDecelerationEnable ? Color.DarkGoldenrod : Color.AliceBlue;
                     label54.ForeColor = m_Vehicle.TorqueEnable ? Color.DarkGoldenrod : Color.AliceBlue;
                     label55.ForeColor = m_Vehicle.GearShiftEnable ? Color.DarkGoldenrod : Color.AliceBlue;
                     label108.ForeColor = m_Vehicle.VelocityEnable ? Color.DarkGoldenrod : Color.AliceBlue;
 
-                    //挡位信息
-                    label59.Text = GearState[m_Vehicle.GearShift];
-                    label60.Text = m_Vehicle.ActualAccelerationACC.ToString("F3");//控制ACC
-                    label61.Text = m_Vehicle.Torque.ToString("F3");//扭矩
-                    label107.Text = m_Vehicle.TargetVehicleSpeed.ToString("F3");//目标速度
+                    //控制信息
+                    label59.Text = GearStatus[m_Vehicle.TargetGearShift];           //目标挡位
+                    label60.Text = m_Vehicle.ActualAccelerationACC.ToString("F3");  //控制ACC
+                    label61.Text = m_Vehicle.Torque.ToString("F3");                 //扭矩
+                    label107.Text = m_Vehicle.TargetVehicleSpeed.ToString("F3");    //目标速度
 
-                    label181.Text = VCU_ControlStatus[m_Vehicle.VCU_Status];
-                    label182.Text = ESC_ControlStatus[m_Vehicle.ESC_Status];
-                    label183.Text = EPS_ControlStatus[m_Vehicle.EPS_Status];
+                    //反馈车辆状态
+                    label181.Text = GearStatus[m_Vehicle.ActualGearShift];//实际挡位位置
+                    label182.Text = VehicleDirection[m_Vehicle.WheelSpeedDirection];//速度方向
+                    label183.Text = EPB_SwitchPosition[m_Vehicle.EPB_SwitchPosition];//EPB挡位位置状态
+                    label187.Text = APA_SystemState[m_Vehicle.SystemReadySts];//系统状态
+                    label194.Text = DriverMode[m_Vehicle.AutoDriverModeSts];// 驾驶模式
+                    label189.Text = m_Vehicle.Temperature.ToString("F1");// 环境温度显示
 
-                    label187.Text = ControlStateFlag.ToString("X");//lon control state flag
-
+                    //转向角
                     label11.Text = m_Vehicle.SteeringAngleActual.ToString("F3");//转向角
                     label12.Text = m_Vehicle.TargetAccelerationACC.ToString("F3");//转向角速度
 
-                    label20.Text = m_Vehicle.VehicleSpeed.ToString("F3");//车身速度
-
-                    label21.Text = m_Vehicle.PulseUpdateVelocity.ToString("F3");//脉冲更新的速度
-                    label22.Text = m_Vehicle.AccUpdateVelocity.ToString("F3");//基于加速度拟合的速度
-
-                    label23.Text = m_Vehicle.WheelSpeedRearLeftData.ToString("F3");//左后轮速
-                    label24.Text = m_Vehicle.WheelSpeedRearRightData.ToString("F3");//右后轮速
-
-                    label36.Text = m_Vehicle.WheelSpeedFrontLeftPulse.ToString("F3");//左前脉冲
-                    label37.Text = m_Vehicle.WheelSpeedFrontRightPulse.ToString("F3");//右前脉冲
-                    label38.Text = m_Vehicle.WheelSpeedRearLeftPulse.ToString("F3");//左后脉冲
-                    label39.Text = m_Vehicle.WheelSpeedRearRightPulse.ToString("F3");//右后脉冲
-
+                    //轮速
+                    label20.Text = m_Vehicle.VehicleSpeed.ToString("F3");               //后轴中心速度
+                    label21.Text = m_Vehicle.WheelSpeedFrontLeftData.ToString("F3");    //左前轮速
+                    label22.Text = m_Vehicle.WheelSpeedFrontRightData.ToString("F3");   //右前轮速
+                    label23.Text = m_Vehicle.WheelSpeedRearLeftData.ToString("F3");     //左后轮速
+                    label24.Text = m_Vehicle.WheelSpeedRearRightData.ToString("F3");    //右后轮速
+                    //轮脉冲
+                    label36.Text = m_Vehicle.WheelSpeedFrontLeftPulse.ToString("F3");   //左前脉冲
+                    label37.Text = m_Vehicle.WheelSpeedFrontRightPulse.ToString("F3");  //右前脉冲
+                    label38.Text = m_Vehicle.WheelSpeedRearLeftPulse.ToString("F3");    //左后脉冲
+                    label39.Text = m_Vehicle.WheelSpeedRearRightPulse.ToString("F3");   //右后脉冲
                     label14.Text = m_Vehicle.WheelSpeedRearLeftPulseSum.ToString();//左后脉冲总数
                     label40.Text = m_Vehicle.WheelSpeedRearRightPulseSum.ToString();//右后脉冲总数
-
+                    //传感器数据
                     label176.Text = m_Vehicle.LonAcc.ToString("F3");//lon
                     label177.Text = m_Vehicle.LatAcc.ToString("F3");//lat
                     label178.Text = m_Vehicle.YawRate.ToString("F3");//yaw_rate
                 }));
-
-                //if (WorkingModuleValue <= WorkingModule.Length)
-                //{
-                //    label50.Text = WorkingModule[WorkingModuleValue];
-                //}
-                //if(FunctionStatusValue <= FunctionStatus[WorkingModuleValue].Length)
-                //{
-                //    label51.Text = FunctionStatus[WorkingModuleValue][FunctionStatusValue];
-                //}
             }
             catch
             {
@@ -2823,15 +2870,28 @@ namespace APA_DebugAssistant
         }
         private void Form1_Load(object sender, EventArgs e)
         {
+            label191.ForeColor = Color.AliceBlue;   //主驾驶门
+            label192.ForeColor = Color.AliceBlue;   //副驾驶门
+            label195.ForeColor = Color.AliceBlue;   //后备箱
+            label196.ForeColor = Color.AliceBlue;   //左转灯
+            label197.ForeColor = Color.AliceBlue;   //右转灯
+            label198.ForeColor = Color.AliceBlue;   //主驾驶安全带
+
             label5.ForeColor = Color.AliceBlue;
             label6.ForeColor = Color.AliceBlue;
             label7.ForeColor = Color.AliceBlue;
+
+            label52.ForeColor = Color.DarkGoldenrod ;
+            label53.ForeColor = Color.DarkGoldenrod ;
+            label54.ForeColor = Color.DarkGoldenrod ;
+            label55.ForeColor = Color.DarkGoldenrod ;
+            label108.ForeColor = Color.DarkGoldenrod;
 
             timer_show.Enabled = true;
 
             for (int i = 0; i < 8; i++)
             {
-                comboBox3.Items.Add(GearState[i]);
+                comboBox3.Items.Add(GearStatus[i]);
             }
             comboBox3.SelectedIndex = 1;
 
@@ -2881,7 +2941,6 @@ namespace APA_DebugAssistant
             FrontLeftDiagonal.Angle  = Math.Atan(LEFT_EDGE_TO_CENTER/ FRONT_EDGE_TO_CENTER);
             FrontRightDiagonal.Length = FrontLeftDiagonal.Length;
             FrontRightDiagonal.Angle = -FrontLeftDiagonal.Angle;
-
 
             RearLeftDiagonal.Length = -Math.Sqrt(Math.Pow(LEFT_EDGE_TO_CENTER, 2) + Math.Pow(REAR_EDGE_TO_CENTER, 2)); ;
             RearLeftDiagonal.Angle  = -Math.Atan(LEFT_EDGE_TO_CENTER / REAR_EDGE_TO_CENTER);
@@ -3028,7 +3087,8 @@ namespace APA_DebugAssistant
         {
             //ChangAnInterfaceCAN();
 
-            BoRuiInterfaceCAN1();
+            ControlInterfaceCAN();
+            EmergencyInterfaceCAN();
 
             //DongFengInterfaceCAN();
         }
@@ -3073,7 +3133,7 @@ namespace APA_DebugAssistant
                     UltrasonicLocationFormShow();
                     UltrasonicLocationDirectFormShow();
                 }
-                BoRuiInterfaceCAN1();
+                //BoRuiInterfaceCAN1();
             }
             else if (2 == tabControl1.SelectedIndex)
             {

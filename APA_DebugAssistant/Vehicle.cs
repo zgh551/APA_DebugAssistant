@@ -52,7 +52,8 @@ namespace APA_DebugAssistant
         private double steering_angle_target;
         private byte steering_angle_active;
 
-        private byte gear_shift;
+        private byte target_gear_shift;
+        private byte actual_gear_shift;
         private bool gear_shift_enable;
         private bool gear_shift_valid;
 
@@ -110,10 +111,36 @@ namespace APA_DebugAssistant
         private byte vcu_status;
         // EPS
         private byte eps_status;
+        // EPB
+        private byte epb_status;
+        // SAS
+        private byte sas_status;
+        // TCU
+        private byte tcu_status;
+        // EMS
+        private byte ems_status;
 
         private double lat_acc;
         private double lon_acc;
         private double yaw_rate;
+
+        private double temperature;
+
+        //EPB
+        private byte epb_switch_position;
+
+        //BCM
+        private byte driver_seat_belt_switch_sts;
+        private byte driver_door_sts;
+        private byte passanger_door_sts;
+        private byte trunk_sts;
+
+        private byte turn_light_left_sts;
+        private byte turn_light_right_sts;
+
+        // system state
+        private byte system_ready_sts;
+        private byte auto_driver_mode_sts;
         #region vehicle body
         /*** the vehicle body information ***/
         // Lenght
@@ -168,6 +195,19 @@ namespace APA_DebugAssistant
                 return yaw_rate;
             }
         }
+
+        public double Temperature
+        {
+            set
+            {
+                temperature = value;
+            }
+            get
+            {
+                return temperature;
+            }
+        }
+        
 
         public byte SaveTime
         {
@@ -457,17 +497,30 @@ namespace APA_DebugAssistant
             }
         }
 
-        public byte GearShift
+        public byte TargetGearShift
         {
             set
             {
-                gear_shift = value;
+                target_gear_shift = value;
             }
             get
             {
-                return gear_shift;
+                return target_gear_shift;
             }
         }
+
+        public byte ActualGearShift
+        {
+            set
+            {
+                actual_gear_shift = value;
+            }
+            get
+            {
+                return actual_gear_shift;
+            }
+        }
+
         public bool GearShiftEnable
         {
             set
@@ -903,6 +956,68 @@ namespace APA_DebugAssistant
             }
         }
 
+        // EPB
+        public byte EPB_Status
+        {
+            set
+            {
+                epb_status = value;
+            }
+            get
+            {
+                return epb_status;
+            }
+        }
+        // SAS
+        public byte SAS_Status
+        {
+            set
+            {
+                sas_status = value;
+            }
+            get
+            {
+                return sas_status;
+            }
+        }
+        // TCU
+        public byte TCU_Status
+        {
+            set
+            {
+                tcu_status = value;
+            }
+            get
+            {
+                return tcu_status;
+            }
+        }
+        // EMS
+        public byte EMS_Status
+        {
+            set
+            {
+                ems_status = value;
+            }
+            get
+            {
+                return ems_status;
+            }
+        }
+
+        //EPB
+        public byte EPB_SwitchPosition
+        {
+            set
+            {
+                epb_switch_position = value;
+            }
+            get
+            {
+                return epb_switch_position;
+            }
+        }
+
         //  SAS Steering angle
         public double SteeringAngleActual
         {
@@ -949,6 +1064,101 @@ namespace APA_DebugAssistant
             }
         }
 
+        //BCM
+        public byte DriverSeatBeltSwitchSts
+        {
+            set
+            {
+                driver_seat_belt_switch_sts = value;
+            }
+            get
+            {
+                return driver_seat_belt_switch_sts;
+            }
+        }
+        //private byte driver_seat_belt_switch_sts;
+        public byte DriverDoorSts
+        {
+            set
+            {
+                driver_door_sts = value;
+            }
+            get
+            {
+                return driver_door_sts;
+            }
+        }
+
+        public byte PassangerDoorSts
+        {
+            set
+            {
+                passanger_door_sts = value;
+            }
+            get
+            {
+                return passanger_door_sts;
+            }
+        }
+
+        public byte TrunkSts
+        {
+            set
+            {
+                trunk_sts = value;
+            }
+            get
+            {
+                return trunk_sts;
+            }
+        }
+
+        public byte TurnLightLeftSts
+        {
+            set
+            {
+                turn_light_left_sts = value;
+            }
+            get
+            {
+                return turn_light_left_sts;
+            }
+        }
+
+        public byte TurnLightRightSts
+        {
+            set
+            {
+                turn_light_right_sts = value;
+            }
+            get
+            {
+                return turn_light_right_sts;
+            }
+        }
+
+        public byte SystemReadySts
+        {
+            set
+            {
+                system_ready_sts = value;
+            }
+            get
+            {
+                return system_ready_sts;
+            }
+        }
+        public byte AutoDriverModeSts
+        {
+            set
+            {
+                auto_driver_mode_sts = value;
+            }
+            get
+            {
+                return auto_driver_mode_sts;
+            }
+        }
         #endregion
         /*** the information of the vehicle body ***/
         public double WheelBaseLenght
