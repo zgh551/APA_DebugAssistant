@@ -3263,7 +3263,7 @@ namespace APA_DebugAssistant
                             UltrasonicLocationCAN(13, m_GroundTriangleLocation[6]);
                             UltrasonicLocationCAN(14, m_GroundDirectLocation[10]);
                             UltrasonicLocationCAN(15, m_GroundDirectLocation[11]);
-                            InjectionAckFlag = 0;
+                            //InjectionAckFlag = 0;
                         }
                         else
                         {
