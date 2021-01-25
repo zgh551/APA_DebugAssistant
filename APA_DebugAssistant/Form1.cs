@@ -21,8 +21,15 @@ namespace APA_DebugAssistant
         #region 全局变量
 
         #region 串口相关变量
+        SerialCom m_SerialCom = new SerialCom();
         UInt16 AckCnt;
         byte AckId;
+        #endregion
+
+
+        #region BLDC相关变量
+        private string[] BLDC_WorkState = new string[2] { "待机", "投放" };
+        private string[] BLDC_MotorDirection = new string[4] { "不转", "正传", "反转", "异常"};
         #endregion
 
         #region CAN相关变量
@@ -2852,8 +2859,17 @@ namespace APA_DebugAssistant
             ObstacleDistance_DataShow.Color = Color.BurlyWood;
             ObstacleDistance_DataShow.IsVisibleInLegend = true;
             ObstacleDistance_DataShow.LegendText = "障碍物距离";
-            
+
             #endregion
+
+
+            #region 串口初始化配置
+            serialPort1.DataReceived += new SerialDataReceivedEventHandler(serialPortDataReceived);
+            serialPort1.Encoding = Encoding.GetEncoding("GB2312");
+            m_SerialCom.SearchAndAddSerialToComboBox(serialPort1, comboBox1);
+            m_SerialCom.AddBaudRate(comboBox2);
+            #endregion
+
             // add the thread of the can receive
             //ThreadStart CANTreadChild = new ThreadStart(CallToCANReceiveThread);
             //Thread m_CanReceiveChildThread = new Thread(CANTreadChild);
@@ -3018,6 +3034,49 @@ namespace APA_DebugAssistant
         #endregion
 
         #region 串口操作事件
+        private void serialPortDataReceived(object sender, SerialDataReceivedEventArgs e)
+        {
+            if (m_SerialCom.Closing) return;//如果正在关闭，忽略操作，直接返回，尽快的完成串口监听线程的一次循环  
+            try
+            {
+                m_SerialCom.Listening = true;//设置标记，说明我已经开始处理数据，一会儿要使用系统UI的。
+                int n = serialPort1.BytesToRead;//先记录下来，避免某种原因，人为的原因，操作几次之间时间长，缓存不一致  
+                byte[] data = new byte[n];
+                //received_count += n;//增加接收计数  
+                serialPort1.Read(data, 0, n);//读取缓冲数据 
+
+                m_SerialCom.ReceiveDataProcess(data);
+
+                if (m_SerialCom.DataCatched)
+                {
+                    //更新界面  
+                    this.Invoke((EventHandler)(delegate
+                    {
+                        if (m_SerialCom.BinaryData[0] == 0x85)
+                        {
+                            label207.Text = (m_SerialCom.BinaryData[1] * 0.2).ToString("F2");
+                            label208.Text = (m_SerialCom.BinaryData[2] * 0.1).ToString("F2");
+                            label209.Text = (BitConverter.ToInt16(m_SerialCom.BinaryData, 3) * 0.01).ToString("F2");
+                            label210.Text = (BitConverter.ToInt16(m_SerialCom.BinaryData, 5) * 0.01).ToString("F2");
+
+                            label211.Text = BLDC_WorkState[(m_SerialCom.BinaryData[7] >> 7) & 0x01];
+                            label212.Text = BLDC_MotorDirection[(m_SerialCom.BinaryData[7] >> 5) & 0x03];
+                        }
+                    }));
+                }
+            }
+            finally
+            {
+                m_SerialCom.Listening = false;//我用完了，ui可以关闭串口了。     
+            }// end try              
+        }
+        /**
+         * 串口打开 关闭事件
+         */
+        private void button46_Click(object sender, EventArgs e)
+        {
+            m_SerialCom.OpenAndCloseSerial(serialPort1, button46, comboBox1.Text, Convert.ToInt32(comboBox2.Text));
+        }
         #endregion
 
         #region CAN 操作相关事件
@@ -3769,6 +3828,8 @@ namespace APA_DebugAssistant
         {
             TerminalWorkModeCommandCAN((byte)comboBox4.SelectedIndex, (byte)comboBox5.SelectedIndex);
         }
+
+
 
         /// <summary>
         /// 保存路径选择
