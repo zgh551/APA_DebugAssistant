@@ -3062,6 +3062,12 @@ namespace APA_DebugAssistant
                             label211.Text = BLDC_WorkState[(m_SerialCom.BinaryData[7] >> 7) & 0x01];
                             label212.Text = BLDC_MotorDirection[(m_SerialCom.BinaryData[7] >> 5) & 0x03];
                         }
+                        else if (m_SerialCom.BinaryData[0] == 0x91) // 三相电流
+                        {
+                            label219.Text = (BitConverter.ToInt16(m_SerialCom.BinaryData, 1) * 0.001).ToString("F3");
+                            label220.Text = (BitConverter.ToInt16(m_SerialCom.BinaryData, 3) * 0.001).ToString("F3");
+                            label221.Text = (BitConverter.ToInt16(m_SerialCom.BinaryData, 5) * 0.001).ToString("F3");
+                        }
                     }));
                 }
             }
