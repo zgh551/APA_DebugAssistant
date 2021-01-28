@@ -30,6 +30,10 @@ namespace APA_DebugAssistant
         #region BLDC相关变量
         private string[] BLDC_WorkState = new string[2] { "待机", "投放" };
         private string[] BLDC_MotorDirection = new string[4] { "不转", "正传", "反转", "异常"};
+
+        private Single BLDC_PhaseIA, BLDC_PhaseIB, BLDC_PhaseIC;
+        private Single BLDC_VBUS, BLDC_VBUS_I;
+        private Single BLDC_Position, BLDC_Velocity;
         #endregion
 
         #region CAN相关变量
@@ -106,6 +110,18 @@ namespace APA_DebugAssistant
         byte track_update_status;
         byte parking_update_status;
         byte vehicle_update_status;
+
+        /// <summary>
+        /// BLDC 3相电流显示
+        /// </summary>
+        Series BLDC_Phase_IA_Show = new Series();//A相电流
+        Series BLDC_Phase_IB_Show = new Series();//B相电流
+        Series BLDC_Phase_IC_Show = new Series();//C相电流
+
+        Series BLDC_VBUS_Show = new Series();//电机总线电压
+
+        Series BLDC_PositionShow = new Series();//电机位置
+        Series BLDC_VelocityShow = new Series();//电机转速
         #endregion
 
         #region 超声参数
@@ -2647,6 +2663,82 @@ namespace APA_DebugAssistant
         }
         #endregion
 
+        #region 串口发送接口
+        void BLDC_DeliverySend()
+        {
+            byte[] Data = new byte[10];//动态分配内存
+            byte CRC_Sum = 0;
+            byte N = 1;
+            //发送指令
+            if (serialPort1.IsOpen)
+            {
+                try
+                {
+                    CRC_Sum = 0;
+                    Data[0] = 0x55; //识别标志1
+                    Data[1] = 0x77; //识别标志2
+                    Data[2] = (byte)(3 * N + 3);    //数据长度
+                    Data[3] = 2;    //数据标志 
+                    Data[4] = 1;    //编号
+                    Data[5] = N;
+
+                    Data[6] = (byte)Convert.ToUInt16(textBox12.Text);
+                    Data[7] = 3;
+                    Data[8] = 4;
+
+                    for (int i = 0; i < Data[2]; i++)
+                    {
+                        CRC_Sum = (byte)((CRC_Sum + Data[i + 3]) % 0xff);
+                    }
+                    Data[Data[2] + 3] = CRC_Sum;
+
+                    serialPort1.Write(Data, 0, Data[2] + 4);
+                }
+                catch
+                {
+                    MessageBox.Show("数据类型错误，请检查所发数据类型", "错误提示");
+                }
+            }
+        }
+
+        void BLDC_DQ_Send()
+        {
+            byte[] Data = new byte[10];//动态分配内存
+            byte CRC_Sum = 0;
+            byte[] Data_Temp = new byte[4];//动态分配内存
+            //发送指令
+            if (serialPort1.IsOpen)
+            {
+                try
+                {
+                    CRC_Sum = 0;
+                    Data[0] = 0x55; //识别标志1
+                    Data[1] = 0x77; //识别标志2
+                    Data[2] = 6;    //数据长度
+                    Data[3] = 5;    //数据标志 
+                    Data_Temp = BitConverter.GetBytes(Convert.ToSingle(textBox36.Text) * 1000);// V_D
+                    Data[4] = Data_Temp[0];
+                    Data[5] = Data_Temp[1];
+                    Data_Temp = BitConverter.GetBytes(Convert.ToSingle(textBox37.Text) * 1000);// V_Q
+                    Data[6] = Data_Temp[0];
+                    Data[7] = Data_Temp[1];
+                    Data[8] = 0;
+                    for (int i = 0; i < Data[2]; i++)
+                    {
+                        CRC_Sum = (byte)((CRC_Sum + Data[i + 3]) % 0xff);
+                    }
+                    Data[Data[2] + 3] = CRC_Sum;
+
+                    serialPort1.Write(Data, 0, Data[2] + 4);
+                }
+                catch
+                {
+                    MessageBox.Show("数据类型错误，请检查所发数据类型", "错误提示");
+                }
+            }
+        }
+        #endregion
+
         #endregion
         #region 事件
         #region 初始窗口事件
@@ -2870,6 +2962,67 @@ namespace APA_DebugAssistant
             m_SerialCom.AddBaudRate(comboBox2);
             #endregion
 
+            #region BLDC波形显示 chart
+
+            //BLDC_chart.ChartAreas[0].AxisX.Maximum = 1;
+            //BLDC_chart.ChartAreas[0].AxisX.Minimum = -10;
+
+
+            BLDC_chart.Series.Add(BLDC_Phase_IA_Show);
+            BLDC_Phase_IA_Show.ChartType = SeriesChartType.FastLine;
+            BLDC_Phase_IA_Show.BorderWidth = 2;
+            BLDC_Phase_IA_Show.MarkerSize = 3;
+            BLDC_Phase_IA_Show.BorderDashStyle = ChartDashStyle.NotSet;
+            BLDC_Phase_IA_Show.Color = Color.DarkRed;
+            BLDC_Phase_IA_Show.IsVisibleInLegend = true;
+            BLDC_Phase_IA_Show.LegendText = "A相电流";
+
+            BLDC_chart.Series.Add(BLDC_Phase_IB_Show);
+            BLDC_Phase_IB_Show.ChartType = SeriesChartType.FastLine;
+            BLDC_Phase_IB_Show.BorderWidth = 2;
+            BLDC_Phase_IB_Show.MarkerSize = 3;
+            BLDC_Phase_IB_Show.BorderDashStyle = ChartDashStyle.NotSet;
+            BLDC_Phase_IB_Show.Color = Color.YellowGreen;
+            BLDC_Phase_IB_Show.IsVisibleInLegend = true;
+            BLDC_Phase_IB_Show.LegendText = "B相电流";
+
+            BLDC_chart.Series.Add(BLDC_Phase_IC_Show);
+            BLDC_Phase_IC_Show.ChartType = SeriesChartType.FastLine;
+            BLDC_Phase_IC_Show.BorderWidth = 2;
+            BLDC_Phase_IC_Show.MarkerSize = 3;
+            BLDC_Phase_IC_Show.BorderDashStyle = ChartDashStyle.NotSet;
+            BLDC_Phase_IC_Show.Color = Color.DarkBlue;
+            BLDC_Phase_IC_Show.IsVisibleInLegend = true;
+            BLDC_Phase_IC_Show.LegendText = "C相电流";
+
+            BLDC_chart.Series.Add(BLDC_VBUS_Show);
+            BLDC_VBUS_Show.ChartType = SeriesChartType.FastLine;
+            BLDC_VBUS_Show.BorderWidth = 1;
+            BLDC_VBUS_Show.MarkerSize = 2;
+            BLDC_VBUS_Show.BorderDashStyle = ChartDashStyle.NotSet;
+            BLDC_VBUS_Show.Color = Color.Black;
+            BLDC_VBUS_Show.IsVisibleInLegend = true;
+            BLDC_VBUS_Show.LegendText = "电机电压";
+
+            BLDC_chart.Series.Add(BLDC_PositionShow);
+            BLDC_PositionShow.ChartType = SeriesChartType.FastLine;
+            BLDC_PositionShow.BorderWidth = 1;
+            BLDC_PositionShow.MarkerSize = 2;
+            BLDC_PositionShow.BorderDashStyle = ChartDashStyle.NotSet;
+            BLDC_PositionShow.Color = Color.DarkOrange;
+            BLDC_PositionShow.IsVisibleInLegend = true;
+            BLDC_PositionShow.LegendText = "电机位置";
+
+            BLDC_chart.Series.Add(BLDC_VelocityShow);
+            BLDC_VelocityShow.ChartType = SeriesChartType.FastLine;
+            BLDC_VelocityShow.BorderWidth = 1;
+            BLDC_VelocityShow.MarkerSize = 2;
+            BLDC_VelocityShow.BorderDashStyle = ChartDashStyle.NotSet;
+            BLDC_VelocityShow.Color = Color.DarkGreen;
+            BLDC_VelocityShow.IsVisibleInLegend = true;
+            BLDC_VelocityShow.LegendText = "电机转速";
+            #endregion
+
             // add the thread of the can receive
             //ThreadStart CANTreadChild = new ThreadStart(CallToCANReceiveThread);
             //Thread m_CanReceiveChildThread = new Thread(CANTreadChild);
@@ -3054,19 +3207,31 @@ namespace APA_DebugAssistant
                     {
                         if (m_SerialCom.BinaryData[0] == 0x85)
                         {
-                            label207.Text = (m_SerialCom.BinaryData[1] * 0.2).ToString("F2");
-                            label208.Text = (m_SerialCom.BinaryData[2] * 0.1).ToString("F2");
-                            label209.Text = (BitConverter.ToInt16(m_SerialCom.BinaryData, 3) * 0.01).ToString("F2");
-                            label210.Text = (BitConverter.ToInt16(m_SerialCom.BinaryData, 5) * 0.01).ToString("F2");
+                            BLDC_VBUS = m_SerialCom.BinaryData[1] * 0.2f;
+                            BLDC_VBUS_I = m_SerialCom.BinaryData[2] * 0.1f;
+                            BLDC_Position = BitConverter.ToInt16(m_SerialCom.BinaryData, 3) * 0.01f;
+                            BLDC_Velocity = BitConverter.ToInt16(m_SerialCom.BinaryData, 5) * 0.1f;
 
-                            label211.Text = BLDC_WorkState[(m_SerialCom.BinaryData[7] >> 7) & 0x01];
+                            label207.Text = BLDC_VBUS.ToString("F2");
+                            label208.Text = BLDC_VBUS_I.ToString("F2");
+                            label209.Text = BLDC_Position.ToString("F2");
+                            label210.Text = BLDC_Velocity.ToString("F2");
+
+                            //label211.Text = BLDC_WorkState[(m_SerialCom.BinaryData[7] >> 7) & 0x01];
                             label212.Text = BLDC_MotorDirection[(m_SerialCom.BinaryData[7] >> 5) & 0x03];
+
+
                         }
                         else if (m_SerialCom.BinaryData[0] == 0x91) // 三相电流
                         {
-                            label219.Text = (BitConverter.ToInt16(m_SerialCom.BinaryData, 1) * 0.001).ToString("F3");
-                            label220.Text = (BitConverter.ToInt16(m_SerialCom.BinaryData, 3) * 0.001).ToString("F3");
-                            label221.Text = (BitConverter.ToInt16(m_SerialCom.BinaryData, 5) * 0.001).ToString("F3");
+                            BLDC_PhaseIA = BitConverter.ToInt16(m_SerialCom.BinaryData, 1) * 0.001f;
+                            BLDC_PhaseIB = BitConverter.ToInt16(m_SerialCom.BinaryData, 3) * 0.001f;
+                            BLDC_PhaseIC = BitConverter.ToInt16(m_SerialCom.BinaryData, 5) * 0.001f;
+                        
+                            label219.Text = BLDC_PhaseIA.ToString("F3");
+                            label220.Text = BLDC_PhaseIB.ToString("F3");
+                            label221.Text = BLDC_PhaseIC.ToString("F3");
+                            label211.Text = m_SerialCom.BinaryData[7].ToString("X");
                         }
                     }));
                 }
@@ -3162,93 +3327,147 @@ namespace APA_DebugAssistant
         #region 定时器事件
         private void timer_show_Tick(object sender, EventArgs e)
         {
-            if (m_ZLGCAN.OpenStatus == 1)
-            {
-                ZLGCAN.VCI_CAN_OBJ[] obj = new ZLGCAN.VCI_CAN_OBJ[1];
-                m_ZLGCAN.CAN_Receive(TerminalCAN, ref obj);
-                for (int i = 0; i < obj.Length - 1; i++)
-                {
-                    UltrasonicParse(obj[i]);
-                }
+            //if (m_ZLGCAN.OpenStatus == 1)
+            //{
+            //    ZLGCAN.VCI_CAN_OBJ[] obj = new ZLGCAN.VCI_CAN_OBJ[1];
+            //    m_ZLGCAN.CAN_Receive(TerminalCAN, ref obj);
+            //    for (int i = 0; i < obj.Length - 1; i++)
+            //    {
+            //        UltrasonicParse(obj[i]);
+            //    }
 
-                //m_ZLGCAN.CAN_Receive(VehicleReceiveCAN, ref obj);
-                //for (int i = 0; i < obj.Length-1; i++)
-                //{
-                //    VehicleParse(obj[i]);
-                //}
-                //m_ZLGCAN.CAN_Receive(VehicleSendCAN, ref obj);
-                //for (int i = 0; i < obj.Length - 1; i++)
-                //{
-                //    VehicleSendParse(obj[i]);
-                //}
-            }
-            if (0 == tabControl1.SelectedIndex)
-            {
-                VehicleImformationShow();
-            }
-            else if(1 == tabControl1.SelectedIndex)
-            {
-                if(checkBox9.Checked)
-                {
-                    UltrasonicImformationShow();
-                    //UltrasonicImformationFormShow();//原始数据波形显示
-                }
-                if(checkBox10.Checked)
-                {
-                    UltrasonicLocationFormShow();
-                    UltrasonicLocationDirectFormShow();
-                }
-                //BoRuiInterfaceCAN1();
-            }
-            else if (2 == tabControl1.SelectedIndex)
-            {
-                if (checkBox7.Checked)
-                {
-                    EPB_VehicleSpeedSimulation();
-                    SAS_SteeringAngleSimulation();
-                    TCU_GearSimulation();
-                }
-                if (checkBox8.Checked)
-                {
-                    UltrasonicGroundLocationTriangleFormShow();
-                    UltrasonicGroundLocationDirectFormShow();
-                }
-                ParkingControlShow();
-                TrackInformationShow();
-                ParkingShow();
-                TurnningAngleShiftShow();
-            }
-            else if (4 == tabControl1.SelectedIndex)
-            {
-                UltrasonicLocationShow();
-            }
+            //    //m_ZLGCAN.CAN_Receive(VehicleReceiveCAN, ref obj);
+            //    //for (int i = 0; i < obj.Length-1; i++)
+            //    //{
+            //    //    VehicleParse(obj[i]);
+            //    //}
+            //    //m_ZLGCAN.CAN_Receive(VehicleSendCAN, ref obj);
+            //    //for (int i = 0; i < obj.Length - 1; i++)
+            //    //{
+            //    //    VehicleSendParse(obj[i]);
+            //    //}
+            //}
+            //if (0 == tabControl1.SelectedIndex)
+            //{
+            //    VehicleImformationShow();
+            //}
+            //else if(1 == tabControl1.SelectedIndex)
+            //{
+            //    if(checkBox9.Checked)
+            //    {
+            //        UltrasonicImformationShow();
+            //        //UltrasonicImformationFormShow();//原始数据波形显示
+            //    }
+            //    if(checkBox10.Checked)
+            //    {
+            //        UltrasonicLocationFormShow();
+            //        UltrasonicLocationDirectFormShow();
+            //    }
+            //    //BoRuiInterfaceCAN1();
+            //}
+            //else if (2 == tabControl1.SelectedIndex)
+            //{
+            //    if (checkBox7.Checked)
+            //    {
+            //        EPB_VehicleSpeedSimulation();
+            //        SAS_SteeringAngleSimulation();
+            //        TCU_GearSimulation();
+            //    }
+            //    if (checkBox8.Checked)
+            //    {
+            //        UltrasonicGroundLocationTriangleFormShow();
+            //        UltrasonicGroundLocationDirectFormShow();
+            //    }
+            //    ParkingControlShow();
+            //    TrackInformationShow();
+            //    ParkingShow();
+            //    TurnningAngleShiftShow();
+            //}
+            //else if (4 == tabControl1.SelectedIndex)
+            //{
+            //    UltrasonicLocationShow();
+            //}
             
-            if (0xa5 == vehicle_update_status)
-            {
-                vehicle_update_status = 0;
-                VehicleShow(ParkingEnterPosition);
-            }
-            if (m_MonitorForm.Visible)
-            {
-                m_MonitorForm.SteeringAnglePointAdd(m_Vehicle.SteeringAngleTarget, m_Vehicle.SteeringAngleActual);
-            }
-            if (m_Waveform.Visible)
-            {
-                m_Waveform.VehicleSpeedPointAdd(m_Vehicle.TargetVehicleSpeed, m_Vehicle.VehicleSpeed);
-            }
-            if(m_AccelarateForm.Visible)
-            {
-                m_AccelarateForm.VehicleAcceleratePointAdd(m_Vehicle.TargetAccelerationACC, m_Vehicle.ActualAccelerationACC, m_Vehicle.LonAcc);
-            }
-            //ParkingDetectionDataLog();
-            //ParkingDetectionDataLogOld();
-            //PlanningInfDataLog();
+            //if (0xa5 == vehicle_update_status)
+            //{
+            //    vehicle_update_status = 0;
+            //    VehicleShow(ParkingEnterPosition);
+            //}
+            //if (m_MonitorForm.Visible)
+            //{
+            //    m_MonitorForm.SteeringAnglePointAdd(m_Vehicle.SteeringAngleTarget, m_Vehicle.SteeringAngleActual);
+            //}
+            //if (m_Waveform.Visible)
+            //{
+            //    m_Waveform.VehicleSpeedPointAdd(m_Vehicle.TargetVehicleSpeed, m_Vehicle.VehicleSpeed);
+            //}
+            //if(m_AccelarateForm.Visible)
+            //{
+            //    m_AccelarateForm.VehicleAcceleratePointAdd(m_Vehicle.TargetAccelerationACC, m_Vehicle.ActualAccelerationACC, m_Vehicle.LonAcc);
+            //}
+            ////ParkingDetectionDataLog();
+            ////ParkingDetectionDataLogOld();
+            ////PlanningInfDataLog();
 
-            VelocityControlDataLog();
-            LocationMapInfDataLog();
+            //VelocityControlDataLog();
+            //LocationMapInfDataLog();
 
-            UltrasonicPacketDataLog();
-            BodyTriangleLocationDataLog();
+            //UltrasonicPacketDataLog();
+            //BodyTriangleLocationDataLog();
+
+            if (checkBox16.Checked)
+            {
+                BLDC_Phase_IA_Show.Points.AddY(BLDC_PhaseIA); //A相电流
+                while (BLDC_Phase_IA_Show.Points.Count > 50)
+                {
+                    BLDC_Phase_IA_Show.Points.RemoveAt(0);
+                }
+            }
+
+            if (checkBox17.Checked)
+            {
+                BLDC_Phase_IB_Show.Points.AddY(BLDC_PhaseIB); //B相电流
+                while (BLDC_Phase_IB_Show.Points.Count > 50)
+                {
+                    BLDC_Phase_IB_Show.Points.RemoveAt(0);
+                }
+            }
+
+            if (checkBox18.Checked)
+            {
+                BLDC_Phase_IC_Show.Points.AddY(BLDC_PhaseIC); //C相电流
+                while (BLDC_Phase_IC_Show.Points.Count > 50)
+                {
+                    BLDC_Phase_IC_Show.Points.RemoveAt(0);
+                }
+            }
+
+            if (checkBox15.Checked)
+            {
+                BLDC_VBUS_Show.Points.AddY(BLDC_VBUS);
+                while (BLDC_VBUS_Show.Points.Count > 50)
+                {
+                    BLDC_VBUS_Show.Points.RemoveAt(0);
+                }
+            }
+
+            if (checkBox20.Checked)
+            {
+                BLDC_PositionShow.Points.AddY(BLDC_Position);
+                while (BLDC_PositionShow.Points.Count > 50)
+                {
+                    BLDC_PositionShow.Points.RemoveAt(0);
+                }
+            }
+
+            if (checkBox21.Checked)
+            {
+                BLDC_VelocityShow.Points.AddY(BLDC_Velocity);
+                while (BLDC_VelocityShow.Points.Count > 50)
+                {
+                    BLDC_VelocityShow.Points.RemoveAt(0);
+                }
+            }
         }
 
         /// <summary>
@@ -3820,6 +4039,8 @@ namespace APA_DebugAssistant
             button45.BackColor  = LocationDataSaveStatus ? Color.Green : Color.Red;
         }
 
+
+
         /// <summary>
         /// 曲线生成事件
         /// </summary>
@@ -3834,8 +4055,6 @@ namespace APA_DebugAssistant
         {
             TerminalWorkModeCommandCAN((byte)comboBox4.SelectedIndex, (byte)comboBox5.SelectedIndex);
         }
-
-
 
         /// <summary>
         /// 保存路径选择
@@ -4179,6 +4398,117 @@ namespace APA_DebugAssistant
         }
         #endregion
 
+        #region BLDC显示控制
+        /// <summary>
+        /// VBUS电压
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void checkBox15_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBox15.Checked)
+            {
+                BLDC_chart.ChartAreas[0].AxisY.Maximum = 30;
+                BLDC_chart.ChartAreas[0].AxisY.Minimum = 0;
+            }
+            else
+            {
+                BLDC_VBUS_Show.Points.Clear();
+            }
+        }
+
+        /// <summary>
+        /// 电机位置控制
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void checkBox20_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBox20.Checked)
+            {
+                BLDC_chart.ChartAreas[0].AxisY.Maximum = 390;
+                BLDC_chart.ChartAreas[0].AxisY.Minimum = -10;
+            }
+            else
+            {
+                BLDC_PositionShow.Points.Clear();
+            }
+        }
+
+        /// <summary>
+        /// 角速度
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void checkBox21_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBox21.Checked)
+            {
+                BLDC_chart.ChartAreas[0].AxisY.Maximum = 10;
+                BLDC_chart.ChartAreas[0].AxisY.Minimum = -10;
+            }
+            else
+            {
+                BLDC_VelocityShow.Points.Clear();
+            }
+        }
+
+        /// <summary>
+        /// A相电流
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void checkBox16_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBox16.Checked)
+            {
+                BLDC_chart.ChartAreas[0].AxisY.Maximum = 15;
+                BLDC_chart.ChartAreas[0].AxisY.Minimum = 0;
+            }
+            else
+            {
+                BLDC_Phase_IA_Show.Points.Clear();
+            }
+        }
+
+        /// <summary>
+        /// B相电流
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void checkBox17_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBox17.Checked)
+            {
+                BLDC_chart.ChartAreas[0].AxisY.Maximum = 15;
+                BLDC_chart.ChartAreas[0].AxisY.Minimum = 0;
+            }
+            else
+            {
+                BLDC_Phase_IB_Show.Points.Clear();
+            }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void checkBox18_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBox18.Checked)
+            {
+                BLDC_chart.ChartAreas[0].AxisY.Maximum = 15;
+                BLDC_chart.ChartAreas[0].AxisY.Minimum = 0;
+            }
+            else
+            {
+                BLDC_Phase_IC_Show.Points.Clear();
+            }
+        }
+
+        #endregion
+
         private void button1_Click(object sender, EventArgs e)
         {
             uint id = 0x7C2;
@@ -4262,6 +4592,48 @@ namespace APA_DebugAssistant
             dat[7] = 0x00;
             m_ZLGCAN.CAN_Send(VehicleSendCAN, id, len, dat);
             //label186.Text = "标定结束";
+        }
+        #endregion
+
+        #region BLDC控制
+        /// <summary>
+        /// 电机自检指令
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button48_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        /// <summary>
+        /// 复位指令
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button49_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        /// <summary>
+        /// 投放指令
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button47_Click(object sender, EventArgs e)
+        {
+            BLDC_DeliverySend();
+        }
+
+        /// <summary>
+        /// 近似零位指令
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button50_Click(object sender, EventArgs e)
+        {
+
         }
         #endregion
     }
