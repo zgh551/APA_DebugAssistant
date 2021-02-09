@@ -34,6 +34,7 @@ namespace APA_DebugAssistant
         private Single BLDC_PhaseIA, BLDC_PhaseIB, BLDC_PhaseIC;
         private Single BLDC_VBUS, BLDC_VBUS_I;
         private Single BLDC_Position, BLDC_Velocity;
+        private Single BLDC_Current_D, BLDC_Current_Q;
         #endregion
 
         #region CAN相关变量
@@ -117,6 +118,9 @@ namespace APA_DebugAssistant
         Series BLDC_Phase_IA_Show = new Series();//A相电流
         Series BLDC_Phase_IB_Show = new Series();//B相电流
         Series BLDC_Phase_IC_Show = new Series();//C相电流
+
+        Series BLDC_Current_D_Show = new Series();//D电流
+        Series BLDC_Current_Q_Show = new Series();//Q电流
 
         Series BLDC_VBUS_Show = new Series();//电机总线电压
 
@@ -2666,7 +2670,7 @@ namespace APA_DebugAssistant
         #region 串口发送接口
         void BLDC_DeliverySend()
         {
-            byte[] Data = new byte[10];//动态分配内存
+            byte[] Data = new byte[16];//动态分配内存
             byte CRC_Sum = 0;
             byte N = 1;
             //发送指令
@@ -2682,13 +2686,51 @@ namespace APA_DebugAssistant
                     Data[4] = 1;    //编号
                     Data[5] = N;
 
-                    Data[6] = (byte)Convert.ToUInt16(textBox12.Text);
-                    Data[7] = 3;
-                    Data[8] = 4;
+                    Data[6] = Convert.ToByte(textBox12.Text);
+                    Data[7] = (byte)(Convert.ToSingle(textBox40.Text) * 100);
+                    Data[8] = (byte)(Convert.ToSingle(textBox41.Text) * 20);
+
+                    //Data[9] = Convert.ToByte(textBox12.Text);
+                    //Data[10] = (byte)(Convert.ToSingle(textBox40.Text) * 100);
+                    //Data[11] = (byte)(Convert.ToSingle(textBox41.Text) * 20);
 
                     for (int i = 0; i < Data[2]; i++)
                     {
-                        CRC_Sum = (byte)((CRC_Sum + Data[i + 3]) % 0xff);
+                        CRC_Sum = (byte)(CRC_Sum + Data[i + 3]);
+                    }
+                    Data[Data[2] + 3] = CRC_Sum;
+
+                    serialPort1.Write(Data, 0, Data[2] + 4);
+                }
+                catch
+                {
+                    MessageBox.Show("数据类型错误，请检查所发数据类型", "错误提示");
+                }
+            }
+        }
+
+        void BLDC_ResetSend()
+        {
+            byte[] Data = new byte[10];//动态分配内存
+            byte CRC_Sum = 0;
+            byte N = 1;
+            //发送指令
+            if (serialPort1.IsOpen)
+            {
+                try
+                {
+                    CRC_Sum = 0;
+                    Data[0] = 0x55; //识别标志1
+                    Data[1] = 0x77; //识别标志2
+                    Data[2] = 4;    //数据长度
+                    Data[3] = 3;    //数据标志 
+                    Data[4] = Convert.ToByte(textBox42.Text);
+                    Data[5] = Convert.ToByte(textBox43.Text);
+                    Data[6] = 0;
+
+                    for (int i = 0; i < Data[2]; i++)
+                    {
+                        CRC_Sum = (byte)(CRC_Sum + Data[i + 3]);
                     }
                     Data[Data[2] + 3] = CRC_Sum;
 
@@ -2716,16 +2758,53 @@ namespace APA_DebugAssistant
                     Data[1] = 0x77; //识别标志2
                     Data[2] = 6;    //数据长度
                     Data[3] = 5;    //数据标志 
-                    Data_Temp = BitConverter.GetBytes(Convert.ToSingle(textBox36.Text) * 1000);// V_D
+                    Data_Temp = BitConverter.GetBytes( Convert.ToInt16( Convert.ToSingle(textBox36.Text) * 1000 ));// V_D
                     Data[4] = Data_Temp[0];
                     Data[5] = Data_Temp[1];
-                    Data_Temp = BitConverter.GetBytes(Convert.ToSingle(textBox37.Text) * 1000);// V_Q
+                    Data_Temp = BitConverter.GetBytes( Convert.ToInt16(Convert.ToSingle(textBox37.Text) * 1000 ));// V_Q
                     Data[6] = Data_Temp[0];
                     Data[7] = Data_Temp[1];
                     Data[8] = 0;
                     for (int i = 0; i < Data[2]; i++)
                     {
-                        CRC_Sum = (byte)((CRC_Sum + Data[i + 3]) % 0xff);
+                        CRC_Sum = (byte)(CRC_Sum + Data[i + 3]);
+                    }
+                    Data[Data[2] + 3] = CRC_Sum;
+
+                    serialPort1.Write(Data, 0, Data[2] + 4);
+                }
+                catch
+                {
+                    MessageBox.Show("数据类型错误，请检查所发数据类型", "错误提示");
+                }
+            }
+        }
+
+        void BLDC_Speed_Send()
+        {
+            byte[] Data = new byte[10];//动态分配内存
+            byte CRC_Sum = 0;
+            byte[] Data_Temp = new byte[4];//动态分配内存
+            //发送指令
+            if (serialPort1.IsOpen)
+            {
+                try
+                {
+                    CRC_Sum = 0;
+                    Data[0] = 0x55; //识别标志1
+                    Data[1] = 0x77; //识别标志2
+                    Data[2] = 6;    //数据长度
+                    Data[3] = 6;    //数据标志 
+                    Data_Temp = BitConverter.GetBytes(Convert.ToInt16(Convert.ToSingle(textBox38.Text) * 1000));// Target Speed
+                    Data[4] = Data_Temp[0];
+                    Data[5] = Data_Temp[1];
+                    Data_Temp = BitConverter.GetBytes(Convert.ToInt16(Convert.ToSingle(textBox39.Text) * 1000));// Target Position
+                    Data[6] = Data_Temp[0];
+                    Data[7] = Data_Temp[1];
+                    Data[8] = 0;
+                    for (int i = 0; i < Data[2]; i++)
+                    {
+                        CRC_Sum = (byte)(CRC_Sum + Data[i + 3]);
                     }
                     Data[Data[2] + 3] = CRC_Sum;
 
@@ -3021,6 +3100,24 @@ namespace APA_DebugAssistant
             BLDC_VelocityShow.Color = Color.DarkGreen;
             BLDC_VelocityShow.IsVisibleInLegend = true;
             BLDC_VelocityShow.LegendText = "电机转速";
+
+            BLDC_chart.Series.Add(BLDC_Current_D_Show);
+            BLDC_Current_D_Show.ChartType = SeriesChartType.FastLine;
+            BLDC_Current_D_Show.BorderWidth = 2;
+            BLDC_Current_D_Show.MarkerSize = 3;
+            BLDC_Current_D_Show.BorderDashStyle = ChartDashStyle.NotSet;
+            BLDC_Current_D_Show.Color = Color.DarkMagenta;
+            BLDC_Current_D_Show.IsVisibleInLegend = true;
+            BLDC_Current_D_Show.LegendText = "D电流";
+
+            BLDC_chart.Series.Add(BLDC_Current_Q_Show);
+            BLDC_Current_Q_Show.ChartType = SeriesChartType.FastLine;
+            BLDC_Current_Q_Show.BorderWidth = 2;
+            BLDC_Current_Q_Show.MarkerSize = 3;
+            BLDC_Current_Q_Show.BorderDashStyle = ChartDashStyle.NotSet;
+            BLDC_Current_Q_Show.Color = Color.GreenYellow;
+            BLDC_Current_Q_Show.IsVisibleInLegend = true;
+            BLDC_Current_Q_Show.LegendText = "Q电流";
             #endregion
 
             // add the thread of the can receive
@@ -3212,10 +3309,10 @@ namespace APA_DebugAssistant
                             BLDC_Position = BitConverter.ToInt16(m_SerialCom.BinaryData, 3) * 0.01f;
                             BLDC_Velocity = BitConverter.ToInt16(m_SerialCom.BinaryData, 5) * 0.1f;
 
-                            label207.Text = BLDC_VBUS.ToString("F2");
-                            label208.Text = BLDC_VBUS_I.ToString("F2");
-                            label209.Text = BLDC_Position.ToString("F2");
-                            label210.Text = BLDC_Velocity.ToString("F2");
+                            label207.Text = BLDC_VBUS.ToString("F3");
+                            label208.Text = BLDC_VBUS_I.ToString("F3");
+                            label209.Text = BLDC_Position.ToString("F3");
+                            label210.Text = BLDC_Velocity.ToString("F3");
 
                             //label211.Text = BLDC_WorkState[(m_SerialCom.BinaryData[7] >> 7) & 0x01];
                             label212.Text = BLDC_MotorDirection[(m_SerialCom.BinaryData[7] >> 5) & 0x03];
@@ -3232,6 +3329,14 @@ namespace APA_DebugAssistant
                             label220.Text = BLDC_PhaseIB.ToString("F3");
                             label221.Text = BLDC_PhaseIC.ToString("F3");
                             label211.Text = m_SerialCom.BinaryData[7].ToString("X");
+                        }
+                        else if (m_SerialCom.BinaryData[0] == 0x92) // 转换电流DQ
+                        {
+                            BLDC_Current_D = BitConverter.ToInt16(m_SerialCom.BinaryData, 1) * 0.001f;
+                            BLDC_Current_Q = BitConverter.ToInt16(m_SerialCom.BinaryData, 3) * 0.001f;
+
+                            label233.Text = BLDC_Current_D.ToString("F3");
+                            label234.Text = BLDC_Current_Q.ToString("F3");
                         }
                     }));
                 }
@@ -3466,6 +3571,24 @@ namespace APA_DebugAssistant
                 while (BLDC_VelocityShow.Points.Count > 50)
                 {
                     BLDC_VelocityShow.Points.RemoveAt(0);
+                }
+            }
+
+            if (checkBox22.Checked)
+            {
+                BLDC_Current_D_Show.Points.AddY(BLDC_Current_D);
+                while (BLDC_Current_D_Show.Points.Count > 50)
+                {
+                    BLDC_Current_D_Show.Points.RemoveAt(0);
+                }
+            }
+
+            if (checkBox23.Checked)
+            {
+                BLDC_Current_Q_Show.Points.AddY(BLDC_Current_Q);
+                while (BLDC_Current_Q_Show.Points.Count > 50)
+                {
+                    BLDC_Current_Q_Show.Points.RemoveAt(0);
                 }
             }
         }
@@ -4444,8 +4567,8 @@ namespace APA_DebugAssistant
         {
             if (checkBox21.Checked)
             {
-                BLDC_chart.ChartAreas[0].AxisY.Maximum = 10;
-                BLDC_chart.ChartAreas[0].AxisY.Minimum = -10;
+                BLDC_chart.ChartAreas[0].AxisY.Maximum = 200;
+                BLDC_chart.ChartAreas[0].AxisY.Minimum = -200;
             }
             else
             {
@@ -4462,8 +4585,8 @@ namespace APA_DebugAssistant
         {
             if (checkBox16.Checked)
             {
-                BLDC_chart.ChartAreas[0].AxisY.Maximum = 15;
-                BLDC_chart.ChartAreas[0].AxisY.Minimum = 0;
+                BLDC_chart.ChartAreas[0].AxisY.Maximum =  2;
+                BLDC_chart.ChartAreas[0].AxisY.Minimum = -2;
             }
             else
             {
@@ -4480,8 +4603,8 @@ namespace APA_DebugAssistant
         {
             if (checkBox17.Checked)
             {
-                BLDC_chart.ChartAreas[0].AxisY.Maximum = 15;
-                BLDC_chart.ChartAreas[0].AxisY.Minimum = 0;
+                BLDC_chart.ChartAreas[0].AxisY.Maximum =  2;
+                BLDC_chart.ChartAreas[0].AxisY.Minimum = -2;
             }
             else
             {
@@ -4490,7 +4613,7 @@ namespace APA_DebugAssistant
         }
 
         /// <summary>
-        /// 
+        /// C相电流
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -4498,8 +4621,8 @@ namespace APA_DebugAssistant
         {
             if (checkBox18.Checked)
             {
-                BLDC_chart.ChartAreas[0].AxisY.Maximum = 15;
-                BLDC_chart.ChartAreas[0].AxisY.Minimum = 0;
+                BLDC_chart.ChartAreas[0].AxisY.Maximum =  2;
+                BLDC_chart.ChartAreas[0].AxisY.Minimum = -2;
             }
             else
             {
@@ -4507,8 +4630,104 @@ namespace APA_DebugAssistant
             }
         }
 
+        /// <summary>
+        /// D电流
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void checkBox22_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBox22.Checked)
+            {
+                BLDC_chart.ChartAreas[0].AxisY.Maximum = 1;
+                BLDC_chart.ChartAreas[0].AxisY.Minimum = -1;
+            }
+            else
+            {
+                BLDC_Current_D_Show.Points.Clear();
+            }
+        }
+
+        /// <summary>
+        /// Q电流
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void checkBox23_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBox23.Checked)
+            {
+                BLDC_chart.ChartAreas[0].AxisY.Maximum =  1;
+                BLDC_chart.ChartAreas[0].AxisY.Minimum = -1;
+            }
+            else
+            {
+                BLDC_Current_Q_Show.Points.Clear();
+            }
+        }
         #endregion
 
+        #region BLDC控制
+        /// <summary>
+        /// 电机自检指令
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button48_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        /// <summary>
+        /// 复位指令
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button49_Click(object sender, EventArgs e)
+        {
+            BLDC_ResetSend();
+        }
+
+        /// <summary>
+        /// 投放指令
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button47_Click(object sender, EventArgs e)
+        {
+            BLDC_DeliverySend();
+        }
+
+        /// <summary>
+        /// 近似零位指令
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button50_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        /// <summary>
+        /// 电机电压控制
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button51_Click(object sender, EventArgs e)
+        {
+            BLDC_DQ_Send();
+        }
+
+        /// <summary>
+        /// 速度控制和位置控制
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void button52_Click(object sender, EventArgs e)
+        {
+            BLDC_Speed_Send();
+        }
+        #endregion
         private void button1_Click(object sender, EventArgs e)
         {
             uint id = 0x7C2;
@@ -4595,46 +4814,6 @@ namespace APA_DebugAssistant
         }
         #endregion
 
-        #region BLDC控制
-        /// <summary>
-        /// 电机自检指令
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void button48_Click(object sender, EventArgs e)
-        {
 
-        }
-
-        /// <summary>
-        /// 复位指令
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void button49_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        /// <summary>
-        /// 投放指令
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void button47_Click(object sender, EventArgs e)
-        {
-            BLDC_DeliverySend();
-        }
-
-        /// <summary>
-        /// 近似零位指令
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void button50_Click(object sender, EventArgs e)
-        {
-
-        }
-        #endregion
     }
 }
