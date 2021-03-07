@@ -31,6 +31,8 @@ namespace APA_DebugAssistant
         private string[] BLDC_WorkState = new string[2] { "待机", "投放" };
         private string[] BLDC_MotorDirection = new string[4] { "不转", "正传", "反转", "异常"};
 
+        private Single BLDC_TargetPosition, BLDC_ActualPosition, BLDC_ActualTurn;
+
         private Single BLDC_PhaseIA, BLDC_PhaseIB, BLDC_PhaseIC;
         private Single BLDC_VBUS, BLDC_VBUS_I;
         private Single BLDC_Position, BLDC_Velocity;
@@ -2670,9 +2672,9 @@ namespace APA_DebugAssistant
         #region 串口发送接口
         void BLDC_DeliverySend()
         {
-            byte[] Data = new byte[16];//动态分配内存
+            byte[] Data = new byte[100];//动态分配内存
             byte CRC_Sum = 0;
-            byte N = 1;
+            byte N = 2;
             //发送指令
             if (serialPort1.IsOpen)
             {
@@ -2690,15 +2692,63 @@ namespace APA_DebugAssistant
                     Data[7] = (byte)(Convert.ToSingle(textBox40.Text) * 100);
                     Data[8] = (byte)(Convert.ToSingle(textBox41.Text) * 20);
 
-                    //Data[9] = Convert.ToByte(textBox12.Text);
-                    //Data[10] = (byte)(Convert.ToSingle(textBox40.Text) * 100);
-                    //Data[11] = (byte)(Convert.ToSingle(textBox41.Text) * 20);
+                    Data[9] = Convert.ToByte(textBox12.Text);
+                    Data[10] = (byte)(Convert.ToSingle(textBox40.Text) * 100);
+                    Data[11] = (byte)(Convert.ToSingle(textBox41.Text) * 20);
 
                     for (int i = 0; i < Data[2]; i++)
                     {
                         CRC_Sum = (byte)(CRC_Sum + Data[i + 3]);
                     }
                     Data[Data[2] + 3] = CRC_Sum;
+
+                    serialPort1.Write(Data, 0, Data[2] + 4);
+                }
+                catch
+                {
+                    MessageBox.Show("数据类型错误，请检查所发数据类型", "错误提示");
+                }
+            }
+        }
+
+        void BLDC_DeliveryMaxSend()
+        {
+            byte[] Data = new byte[100];//动态分配内存
+            byte CRC_Sum = 0;
+            byte N = 2;
+            //发送指令
+            if (serialPort1.IsOpen)
+            {
+                try
+                {
+                    CRC_Sum = 0;
+                    Data[0] = 0x55; //识别标志1
+                    Data[1] = 0x77; //识别标志2
+                    Data[2] = 93;    //数据长度
+                    Data[3] = 2;    //数据标志 
+                    Data[4] = 1;    //编号
+                    Data[5] = N;
+
+                    Data[6] = Convert.ToByte(textBox12.Text);
+                    Data[7] = (byte)(Convert.ToSingle(textBox40.Text) * 100);
+                    Data[8] = (byte)(Convert.ToSingle(textBox41.Text) * 20);
+
+                    Data[9] = Convert.ToByte(textBox12.Text);
+                    Data[10] = (byte)(Convert.ToSingle(textBox40.Text) * 100);
+                    Data[11] = (byte)(Convert.ToSingle(textBox41.Text) * 20);
+
+                    for (int i = 0; i < 28; i++)
+                    {
+                        Data[3 * i + 12] = 0;
+                        Data[3 * i + 13] = 0;
+                        Data[3 * i + 14] = 0;
+                    }
+                    Data[95] = 0xff;
+                    for (int i = 0; i < Data[2]; i++)
+                    {
+                        CRC_Sum = (byte)(CRC_Sum + Data[i + 3]);
+                    }
+                    Data[96] = CRC_Sum;
 
                     serialPort1.Write(Data, 0, Data[2] + 4);
                 }
@@ -3306,37 +3356,140 @@ namespace APA_DebugAssistant
                         {
                             BLDC_VBUS = m_SerialCom.BinaryData[1] * 0.2f;
                             BLDC_VBUS_I = m_SerialCom.BinaryData[2] * 0.1f;
-                            BLDC_Position = BitConverter.ToInt16(m_SerialCom.BinaryData, 3) * 0.01f;
+                            BLDC_Position = BitConverter.ToUInt16(m_SerialCom.BinaryData, 3) * 2;
                             BLDC_Velocity = BitConverter.ToInt16(m_SerialCom.BinaryData, 5) * 0.1f;
 
-                            label207.Text = BLDC_VBUS.ToString("F3");
+                            
                             label208.Text = BLDC_VBUS_I.ToString("F3");
-                            label209.Text = BLDC_Position.ToString("F3");
-                            label210.Text = BLDC_Velocity.ToString("F3");
 
-                            //label211.Text = BLDC_WorkState[(m_SerialCom.BinaryData[7] >> 7) & 0x01];
+                            if (checkBox15.Checked)
+                            {
+                                BLDC_VBUS_Show.Points.AddY(BLDC_VBUS);
+                                while (BLDC_VBUS_Show.Points.Count > 50)
+                                {
+                                    BLDC_VBUS_Show.Points.RemoveAt(0);
+                                }
+                            }
+                            else
+                            {
+                                label207.Text = BLDC_VBUS.ToString("F3");
+                            }
+
+                            if (checkBox20.Checked)
+                            {
+                                BLDC_PositionShow.Points.AddY(BLDC_Position);
+                                while (BLDC_PositionShow.Points.Count > 50)
+                                {
+                                    BLDC_PositionShow.Points.RemoveAt(0);
+                                }
+                            }
+                            else
+                            {
+                                label209.Text = BLDC_Position.ToString("F3");
+                            }
+
+                            if (checkBox21.Checked)
+                            {
+                                BLDC_VelocityShow.Points.AddY(BLDC_Velocity);
+                                while (BLDC_VelocityShow.Points.Count > 50)
+                                {
+                                    BLDC_VelocityShow.Points.RemoveAt(0);
+                                }
+                            }
+                            else
+                            {
+                                label210.Text = BLDC_Velocity.ToString("F3");
+                            }
+                            label211.Text = BLDC_WorkState[(m_SerialCom.BinaryData[7] >> 7) & 0x01];
                             label212.Text = BLDC_MotorDirection[(m_SerialCom.BinaryData[7] >> 5) & 0x03];
+                        }
+                        else if (m_SerialCom.BinaryData[0] == 0x86)
+                        {
+                            BLDC_TargetPosition = BitConverter.ToUInt16(m_SerialCom.BinaryData, 1) * 2;
+                            BLDC_ActualPosition = BitConverter.ToUInt16(m_SerialCom.BinaryData, 3) * 2;
+                            BLDC_ActualTurn = m_SerialCom.BinaryData[5];
 
-
+                            label244.Text = BLDC_TargetPosition.ToString();
+                            label245.Text = BLDC_ActualPosition.ToString();
+                            label246.Text = BLDC_ActualTurn.ToString();
                         }
                         else if (m_SerialCom.BinaryData[0] == 0x91) // 三相电流
                         {
                             BLDC_PhaseIA = BitConverter.ToInt16(m_SerialCom.BinaryData, 1) * 0.001f;
                             BLDC_PhaseIB = BitConverter.ToInt16(m_SerialCom.BinaryData, 3) * 0.001f;
                             BLDC_PhaseIC = BitConverter.ToInt16(m_SerialCom.BinaryData, 5) * 0.001f;
-                        
-                            label219.Text = BLDC_PhaseIA.ToString("F3");
-                            label220.Text = BLDC_PhaseIB.ToString("F3");
-                            label221.Text = BLDC_PhaseIC.ToString("F3");
-                            label211.Text = m_SerialCom.BinaryData[7].ToString("X");
+                                                  
+                            if (checkBox16.Checked)
+                            {
+                                BLDC_Phase_IA_Show.Points.AddY(BLDC_PhaseIA); //A相电流
+                                while (BLDC_Phase_IA_Show.Points.Count > 500)
+                                {
+                                    BLDC_Phase_IA_Show.Points.RemoveAt(0);
+                                }
+                            }
+                            else
+                            {
+                                label219.Text = BLDC_PhaseIA.ToString("F3");
+                            }
+
+                            if (checkBox17.Checked)
+                            {
+                                BLDC_Phase_IB_Show.Points.AddY(BLDC_PhaseIB); //B相电流
+                                while (BLDC_Phase_IB_Show.Points.Count > 500)
+                                {
+                                    BLDC_Phase_IB_Show.Points.RemoveAt(0);
+                                }
+                            }
+                            else
+                            {
+                                label220.Text = BLDC_PhaseIB.ToString("F3");
+                            }
+
+                            if (checkBox18.Checked)
+                            {
+                                BLDC_Phase_IC_Show.Points.AddY(BLDC_PhaseIC); //C相电流
+                                while (BLDC_Phase_IC_Show.Points.Count > 500)
+                                {
+                                    BLDC_Phase_IC_Show.Points.RemoveAt(0);
+                                }
+                            }
+                            else
+                            {
+                                label221.Text = BLDC_PhaseIC.ToString("F3");
+                            }
+
+                            //label211.Text = m_SerialCom.BinaryData[7].ToString("X");
                         }
                         else if (m_SerialCom.BinaryData[0] == 0x92) // 转换电流DQ
                         {
                             BLDC_Current_D = BitConverter.ToInt16(m_SerialCom.BinaryData, 1) * 0.001f;
                             BLDC_Current_Q = BitConverter.ToInt16(m_SerialCom.BinaryData, 3) * 0.001f;
 
-                            label233.Text = BLDC_Current_D.ToString("F3");
-                            label234.Text = BLDC_Current_Q.ToString("F3");
+                            if (checkBox22.Checked)
+                            {
+                                BLDC_Current_D_Show.Points.AddY(BLDC_Current_D);
+                                while (BLDC_Current_D_Show.Points.Count > 50)
+                                {
+                                    BLDC_Current_D_Show.Points.RemoveAt(0);
+                                }
+                            }
+                            else
+                            {
+                                label233.Text = BLDC_Current_D.ToString("F3");
+                            }
+
+                            if (checkBox23.Checked)
+                            {
+                                BLDC_Current_Q_Show.Points.AddY(BLDC_Current_Q);
+                                while (BLDC_Current_Q_Show.Points.Count > 50)
+                                {
+                                    BLDC_Current_Q_Show.Points.RemoveAt(0);
+                                }
+                            }
+                            else
+                            {
+                                label234.Text = BLDC_Current_Q.ToString("F3");
+                            }
                         }
                     }));
                 }
@@ -3519,78 +3672,6 @@ namespace APA_DebugAssistant
 
             //UltrasonicPacketDataLog();
             //BodyTriangleLocationDataLog();
-
-            if (checkBox16.Checked)
-            {
-                BLDC_Phase_IA_Show.Points.AddY(BLDC_PhaseIA); //A相电流
-                while (BLDC_Phase_IA_Show.Points.Count > 50)
-                {
-                    BLDC_Phase_IA_Show.Points.RemoveAt(0);
-                }
-            }
-
-            if (checkBox17.Checked)
-            {
-                BLDC_Phase_IB_Show.Points.AddY(BLDC_PhaseIB); //B相电流
-                while (BLDC_Phase_IB_Show.Points.Count > 50)
-                {
-                    BLDC_Phase_IB_Show.Points.RemoveAt(0);
-                }
-            }
-
-            if (checkBox18.Checked)
-            {
-                BLDC_Phase_IC_Show.Points.AddY(BLDC_PhaseIC); //C相电流
-                while (BLDC_Phase_IC_Show.Points.Count > 50)
-                {
-                    BLDC_Phase_IC_Show.Points.RemoveAt(0);
-                }
-            }
-
-            if (checkBox15.Checked)
-            {
-                BLDC_VBUS_Show.Points.AddY(BLDC_VBUS);
-                while (BLDC_VBUS_Show.Points.Count > 50)
-                {
-                    BLDC_VBUS_Show.Points.RemoveAt(0);
-                }
-            }
-
-            if (checkBox20.Checked)
-            {
-                BLDC_PositionShow.Points.AddY(BLDC_Position);
-                while (BLDC_PositionShow.Points.Count > 50)
-                {
-                    BLDC_PositionShow.Points.RemoveAt(0);
-                }
-            }
-
-            if (checkBox21.Checked)
-            {
-                BLDC_VelocityShow.Points.AddY(BLDC_Velocity);
-                while (BLDC_VelocityShow.Points.Count > 50)
-                {
-                    BLDC_VelocityShow.Points.RemoveAt(0);
-                }
-            }
-
-            if (checkBox22.Checked)
-            {
-                BLDC_Current_D_Show.Points.AddY(BLDC_Current_D);
-                while (BLDC_Current_D_Show.Points.Count > 50)
-                {
-                    BLDC_Current_D_Show.Points.RemoveAt(0);
-                }
-            }
-
-            if (checkBox23.Checked)
-            {
-                BLDC_Current_Q_Show.Points.AddY(BLDC_Current_Q);
-                while (BLDC_Current_Q_Show.Points.Count > 50)
-                {
-                    BLDC_Current_Q_Show.Points.RemoveAt(0);
-                }
-            }
         }
 
         /// <summary>
@@ -4549,8 +4630,8 @@ namespace APA_DebugAssistant
         {
             if (checkBox20.Checked)
             {
-                BLDC_chart.ChartAreas[0].AxisY.Maximum = 390;
-                BLDC_chart.ChartAreas[0].AxisY.Minimum = -10;
+                BLDC_chart.ChartAreas[0].AxisY.Maximum = 360;
+                BLDC_chart.ChartAreas[0].AxisY.Minimum = 0;
             }
             else
             {
@@ -4695,7 +4776,8 @@ namespace APA_DebugAssistant
         /// <param name="e"></param>
         private void button47_Click(object sender, EventArgs e)
         {
-            BLDC_DeliverySend();
+            //BLDC_DeliverySend();
+            BLDC_DeliveryMaxSend();
         }
 
         /// <summary>
