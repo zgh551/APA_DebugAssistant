@@ -2721,7 +2721,7 @@ namespace APA_DebugAssistant
             {
                 try
                 {
-                    CRC_Sum = 0;
+                    
                     Data[0] = 0x55; //识别标志1
                     Data[1] = 0x77; //识别标志2
                     Data[2] = 93;    //数据长度
@@ -2744,6 +2744,7 @@ namespace APA_DebugAssistant
                         Data[3 * i + 14] = 0;
                     }
                     Data[95] = 0xff;
+                    CRC_Sum = Data[2];
                     for (int i = 0; i < Data[2]; i++)
                     {
                         CRC_Sum = (byte)(CRC_Sum + Data[i + 3]);
@@ -2769,7 +2770,7 @@ namespace APA_DebugAssistant
             {
                 try
                 {
-                    CRC_Sum = 0;
+                    //CRC_Sum = 0;
                     Data[0] = 0x55; //识别标志1
                     Data[1] = 0x77; //识别标志2
                     Data[2] = 4;    //数据长度
@@ -2778,6 +2779,7 @@ namespace APA_DebugAssistant
                     Data[5] = Convert.ToByte(textBox43.Text);
                     Data[6] = 0;
 
+                    CRC_Sum = Data[2];
                     for (int i = 0; i < Data[2]; i++)
                     {
                         CRC_Sum = (byte)(CRC_Sum + Data[i + 3]);
@@ -2803,7 +2805,7 @@ namespace APA_DebugAssistant
             {
                 try
                 {
-                    CRC_Sum = 0;
+                    //CRC_Sum = 0;
                     Data[0] = 0x55; //识别标志1
                     Data[1] = 0x77; //识别标志2
                     Data[2] = 6;    //数据长度
@@ -2815,6 +2817,7 @@ namespace APA_DebugAssistant
                     Data[6] = Data_Temp[0];
                     Data[7] = Data_Temp[1];
                     Data[8] = 0;
+                    CRC_Sum = Data[2];
                     for (int i = 0; i < Data[2]; i++)
                     {
                         CRC_Sum = (byte)(CRC_Sum + Data[i + 3]);
@@ -2840,7 +2843,7 @@ namespace APA_DebugAssistant
             {
                 try
                 {
-                    CRC_Sum = 0;
+                    //CRC_Sum = 0;
                     Data[0] = 0x55; //识别标志1
                     Data[1] = 0x77; //识别标志2
                     Data[2] = 6;    //数据长度
@@ -2852,6 +2855,7 @@ namespace APA_DebugAssistant
                     Data[6] = Data_Temp[0];
                     Data[7] = Data_Temp[1];
                     Data[8] = 0;
+                    CRC_Sum = Data[2];
                     for (int i = 0; i < Data[2]; i++)
                     {
                         CRC_Sum = (byte)(CRC_Sum + Data[i + 3]);
@@ -3400,8 +3404,9 @@ namespace APA_DebugAssistant
                             {
                                 label210.Text = BLDC_Velocity.ToString("F3");
                             }
-                            label211.Text = BLDC_WorkState[(m_SerialCom.BinaryData[7] >> 7) & 0x01];
-                            label212.Text = BLDC_MotorDirection[(m_SerialCom.BinaryData[7] >> 5) & 0x03];
+                            //label211.Text = BLDC_WorkState[(m_SerialCom.BinaryData[7] >> 7) & 0x01];
+                            //label212.Text = BLDC_MotorDirection[(m_SerialCom.BinaryData[7] >> 5) & 0x03];
+                            label212.Text = m_SerialCom.BinaryData[7].ToString("X");
                         }
                         else if (m_SerialCom.BinaryData[0] == 0x86)
                         {

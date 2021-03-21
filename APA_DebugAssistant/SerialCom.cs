@@ -210,7 +210,7 @@ namespace APA_DebugAssistant
                                                       //异或校验，逐个字节异或得到校验码  
                                                       /**/
                     byte checksum = 0;
-                    for (int i = 3; i < len + 3; i++)//len+3表示校验之前的位置  
+                    for (int i = 2; i < len + 3; i++)//len+3表示校验之前的位置  
                     {
                         checksum += buffer[i];
                     }
