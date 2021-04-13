@@ -31,7 +31,7 @@ namespace APA_DebugAssistant
         private string[] BLDC_WorkState = new string[2] { "待机", "投放" };
         private string[] BLDC_MotorDirection = new string[4] { "不转", "正传", "反转", "异常"};
 
-        private Single BLDC_TargetPosition, BLDC_ActualPosition, BLDC_ActualTurn;
+        private Single BLDC_TargetPosition, BLDC_ActualPosition, BLDC_TargetTurn, BLDC_ActualTurn;
 
         private Single BLDC_PhaseIA, BLDC_PhaseIB, BLDC_PhaseIC;
         private Single BLDC_VBUS, BLDC_VBUS_I;
@@ -2810,10 +2810,10 @@ namespace APA_DebugAssistant
                     Data[1] = 0x77; //识别标志2
                     Data[2] = 6;    //数据长度
                     Data[3] = 5;    //数据标志 
-                    Data_Temp = BitConverter.GetBytes( Convert.ToInt16( Convert.ToSingle(textBox36.Text) * 1000 ));// V_D
+                    Data_Temp = BitConverter.GetBytes( Convert.ToInt16( Convert.ToSingle(textBox36.Text) * 100 ));// V_D
                     Data[4] = Data_Temp[0];
                     Data[5] = Data_Temp[1];
-                    Data_Temp = BitConverter.GetBytes( Convert.ToInt16(Convert.ToSingle(textBox37.Text) * 1000 ));// V_Q
+                    Data_Temp = BitConverter.GetBytes( Convert.ToInt16(Convert.ToSingle(textBox37.Text) * 100 ));// V_Q
                     Data[6] = Data_Temp[0];
                     Data[7] = Data_Temp[1];
                     Data[8] = 0;
@@ -2848,10 +2848,10 @@ namespace APA_DebugAssistant
                     Data[1] = 0x77; //识别标志2
                     Data[2] = 6;    //数据长度
                     Data[3] = 6;    //数据标志 
-                    Data_Temp = BitConverter.GetBytes(Convert.ToInt16(Convert.ToSingle(textBox38.Text) * 1000));// Target Speed
+                    Data_Temp = BitConverter.GetBytes(Convert.ToInt16(Convert.ToSingle(textBox38.Text) * 100));// Target Speed
                     Data[4] = Data_Temp[0];
                     Data[5] = Data_Temp[1];
-                    Data_Temp = BitConverter.GetBytes(Convert.ToInt16(Convert.ToSingle(textBox39.Text) * 1000));// Target Position
+                    Data_Temp = BitConverter.GetBytes(Convert.ToInt16(Convert.ToSingle(textBox39.Text) * 100));// Target Position
                     Data[6] = Data_Temp[0];
                     Data[7] = Data_Temp[1];
                     Data[8] = 0;
@@ -3360,10 +3360,10 @@ namespace APA_DebugAssistant
                         {
                             BLDC_VBUS = m_SerialCom.BinaryData[1] * 0.2f;
                             BLDC_VBUS_I = m_SerialCom.BinaryData[2] * 0.1f;
-                            BLDC_Position = BitConverter.ToUInt16(m_SerialCom.BinaryData, 3) * 2;
+                            BLDC_Position = BitConverter.ToUInt16(m_SerialCom.BinaryData, 3) * 2 * 57.3f;
                             BLDC_Velocity = BitConverter.ToInt16(m_SerialCom.BinaryData, 5) * 0.1f;
+                            //BLDC_Velocity = BitConverter.ToInt16(m_SerialCom.BinaryData, 5) * 2 * 57.3f;
 
-                            
                             label208.Text = BLDC_VBUS_I.ToString("F3");
 
                             if (checkBox15.Checked)
@@ -3412,10 +3412,12 @@ namespace APA_DebugAssistant
                         {
                             BLDC_TargetPosition = BitConverter.ToUInt16(m_SerialCom.BinaryData, 1) * 2;
                             BLDC_ActualPosition = BitConverter.ToUInt16(m_SerialCom.BinaryData, 3) * 2;
-                            BLDC_ActualTurn = m_SerialCom.BinaryData[5];
+                            BLDC_TargetTurn = m_SerialCom.BinaryData[5];
+                            BLDC_ActualTurn = m_SerialCom.BinaryData[6];
 
                             label244.Text = BLDC_TargetPosition.ToString();
                             label245.Text = BLDC_ActualPosition.ToString();
+                            label248.Text = BLDC_TargetTurn.ToString();
                             label246.Text = BLDC_ActualTurn.ToString();
                         }
                         else if (m_SerialCom.BinaryData[0] == 0x91) // 三相电流
@@ -3473,7 +3475,7 @@ namespace APA_DebugAssistant
                             if (checkBox22.Checked)
                             {
                                 BLDC_Current_D_Show.Points.AddY(BLDC_Current_D);
-                                while (BLDC_Current_D_Show.Points.Count > 50)
+                                while (BLDC_Current_D_Show.Points.Count > 500)
                                 {
                                     BLDC_Current_D_Show.Points.RemoveAt(0);
                                 }
@@ -3486,7 +3488,7 @@ namespace APA_DebugAssistant
                             if (checkBox23.Checked)
                             {
                                 BLDC_Current_Q_Show.Points.AddY(BLDC_Current_Q);
-                                while (BLDC_Current_Q_Show.Points.Count > 50)
+                                while (BLDC_Current_Q_Show.Points.Count > 500)
                                 {
                                     BLDC_Current_Q_Show.Points.RemoveAt(0);
                                 }
