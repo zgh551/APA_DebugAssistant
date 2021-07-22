@@ -2729,19 +2729,19 @@ namespace APA_DebugAssistant
                     Data[4] = 1;    //编号
                     Data[5] = N;
 
-                    Data[6] = Convert.ToByte(textBox12.Text);
-                    Data[7] = (byte)(Convert.ToSingle(textBox40.Text) * 100);
-                    Data[8] = (byte)(Convert.ToSingle(textBox41.Text) * 20);
+                    //Data[6] = Convert.ToByte(textBox12.Text);
+                    //Data[7] = (byte)(Convert.ToSingle(textBox40.Text) * 100);
+                    //Data[8] = (byte)(Convert.ToSingle(textBox41.Text) * 20);
 
-                    Data[9] = Convert.ToByte(textBox12.Text);
-                    Data[10] = (byte)(Convert.ToSingle(textBox40.Text) * 100);
-                    Data[11] = (byte)(Convert.ToSingle(textBox41.Text) * 20);
+                    //Data[9] = Convert.ToByte(textBox12.Text);
+                    //Data[10] = (byte)(Convert.ToSingle(textBox40.Text) * 100);
+                    //Data[11] = (byte)(Convert.ToSingle(textBox41.Text) * 20);
 
-                    for (int i = 0; i < 28; i++)
+                    for (int i = 0; i < 30; i++)
                     {
-                        Data[3 * i + 12] = 0;
-                        Data[3 * i + 13] = 0;
-                        Data[3 * i + 14] = 0;
+                        Data[3 * i + 6] = Convert.ToByte(textBox12.Text);
+                        Data[3 * i + 7] = (byte)(Convert.ToSingle(textBox40.Text) * 100);
+                        Data[3 * i + 8] = (byte)(Convert.ToSingle(textBox41.Text) * 20);
                     }
                     Data[95] = 0xff;
                     CRC_Sum = Data[2];
