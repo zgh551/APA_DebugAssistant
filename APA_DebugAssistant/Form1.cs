@@ -3361,6 +3361,8 @@ namespace APA_DebugAssistant
                             BLDC_VBUS = m_SerialCom.BinaryData[1] * 0.2f;
                             BLDC_VBUS_I = m_SerialCom.BinaryData[2] * 0.1f;
                             BLDC_Position = BitConverter.ToUInt16(m_SerialCom.BinaryData, 3) * 2 * 57.3f;
+                            //BLDC_Position = BitConverter.ToUInt16(m_SerialCom.BinaryData, 3) * 0.01f;
+
                             BLDC_Velocity = BitConverter.ToInt16(m_SerialCom.BinaryData, 5) * 0.1f;
                             //BLDC_Velocity = BitConverter.ToInt16(m_SerialCom.BinaryData, 5) * 2 * 57.3f;
 
